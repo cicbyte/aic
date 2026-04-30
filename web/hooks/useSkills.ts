@@ -53,12 +53,14 @@ export function useSkills() {
   };
 
   const deleteSkill = async (id: number) => {
+    const name = skills.find(s => s.id === id)?.name || '';
     try {
       await skillApi.delete(id);
-      showToast('删除成功', 'success');
+      await loadSkills();
+      showToast(`${name} 删除成功`, 'success');
     } catch (err) {
       console.error('Failed to delete skill:', err);
-      showToast('删除失败', 'error');
+      showToast(`${name} 删除失败`, 'error');
       throw err;
     }
   };

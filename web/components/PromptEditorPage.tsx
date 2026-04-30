@@ -3,14 +3,7 @@ import {
   ArrowLeft, Save, Send, Loader2, Eye, Edit3, FileText, History,
   RotateCcw, X, ArrowRightLeft
 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from './ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from './ui/sheet';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { promptApi } from '../services/apiService';
@@ -75,7 +68,7 @@ interface PromptEditorPageProps {
   categories: Category[];
   projects: Project[];
   onBack: () => void;
-  onSaved: () => void;
+  onSaved: (newId?: number) => void;
 }
 
 export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
@@ -114,6 +107,11 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
   const [publishVersionInput, setPublishVersionInput] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
 
+  // Track saved state
+  const [savedContent, setSavedContent] = useState({ title: '', description: '', content: '' });
+  const hasUnsavedChanges = title !== savedContent.title || description !== savedContent.description || content !== savedContent.content;
+  const canPublish = promptId !== null && hasUnsavedChanges;
+
   useEffect(() => {
     if (promptId) {
       loadPrompt();
@@ -138,6 +136,7 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
       setTitle(data.title);
       setDescription(data.description || '');
       setContent(data.content || '');
+      setSavedContent({ title: data.title, description: data.description || '', content: data.content || '' });
       setCategoryId(data.categoryId ? String(data.categoryId) : '');
       setProjectId(data.projectId ? String(data.projectId) : '');
       setVersion(data.version || '');
@@ -151,6 +150,8 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
   };
 
   const handleSave = async () => {
+    if (!promptId && !title.trim() && !content) return;
+    if (promptId && !hasUnsavedChanges) return;
     if (!title.trim()) {
       showToast('请输入标题', 'warning');
       return;
@@ -174,8 +175,12 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
           categoryId: categoryId ? Number(categoryId) : undefined,
           projectId: projectId ? Number(projectId) : undefined,
         });
+        if (result?.promptId) onSaved(result.promptId);
+        setIsSaving(false);
+        return;
       }
-      showToast(promptId ? '更新成功' : '创建成功', 'success');
+      showToast('更新成功', 'success');
+      setSavedContent({ title: title.trim(), description: description.trim(), content });
       onSaved();
     } catch (err) {
       console.error('Failed to save prompt:', err);
@@ -218,6 +223,7 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
       showToast(`已发布 v${ver}`, 'success');
       setPublishDialogOpen(false);
       setPublishedVersion(ver);
+      setSavedContent({ title, description, content });
       onSaved();
     } catch (err) {
       console.error('Failed to publish:', err);
@@ -333,7 +339,7 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
           )}
           <button
             onClick={handleSave}
-            disabled={!title.trim() || isSaving}
+            disabled={(!title.trim() && !content) || (promptId && !hasUnsavedChanges) || isSaving}
             className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-white bg-primary hover:bg-primary-dark rounded-lg shadow-sm disabled:opacity-50 transition-colors"
           >
             {isSaving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
@@ -342,7 +348,9 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
           {promptId && (
             <button
               onClick={openPublishDialog}
-              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg shadow-sm transition-colors"
+              disabled={!canPublish}
+              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg shadow-sm disabled:opacity-50 transition-colors"
+              title={!canPublish ? '请先修改内容后再发布' : undefined}
             >
               <Send size={12} />
               发布
@@ -433,28 +441,28 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
         )}
       </div>
 
-      {/* Publish Dialog */}
-      <Dialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
-        <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader>
-            <DialogTitle>{publishedVersion ? '发布新版本' : '首次发布'}</DialogTitle>
-            <DialogDescription>设置发布版本号</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-muted-foreground">版本号</label>
-            <Input
-              type="text"
-              value={publishVersionInput}
-              onChange={(e) => setPublishVersionInput(e.target.value)}
-              placeholder="例如 1.0.0"
-              className="font-mono"
-            />
-            <p className="text-[10px] text-muted-foreground">格式: x.y.z (主版本.次版本.修订号)</p>
+      {/* Publish Sheet */}
+      <Sheet open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>{publishedVersion ? '发布新版本' : '首次发布'}</SheetTitle>
+            <SheetDescription>设置发布版本号</SheetDescription>
+          </SheetHeader>
+          <div className="px-6 flex-1 space-y-4 overflow-y-auto">
+            <div>
+              <label className="block text-sm font-medium mb-1.5">版本号 <span className="text-red-400">*</span></label>
+              <Input
+                type="text"
+                value={publishVersionInput}
+                onChange={(e) => setPublishVersionInput(e.target.value)}
+                placeholder="例如 1.0.0"
+                className="font-mono"
+              />
+              <p className="text-[10px] text-muted-foreground mt-1.5">格式: x.y.z (主版本.次版本.修订号)</p>
+            </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPublishDialogOpen(false)}>
-              取消
-            </Button>
+          <SheetFooter>
+            <Button variant="outline" onClick={() => setPublishDialogOpen(false)}>取消</Button>
             <Button
               onClick={handlePublish}
               disabled={isPublishing || !publishVersionInput.trim()}
@@ -463,17 +471,17 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
               {isPublishing ? <Loader2 size={12} className="animate-spin mr-1" /> : <Send size={12} className="mr-1" />}
               确认发布
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
-      {/* Version History Dialog */}
-      <Dialog open={versionSheetOpen} onOpenChange={(open) => { if (!open) { setVersionSheetOpen(false); setPreviewVersion(null); } }}>
-        <DialogContent className="sm:max-w-[560px] max-h-[80vh] flex flex-col p-0 gap-0">
-          <DialogHeader className="px-6 pt-6 pb-4">
-            <DialogTitle>版本历史</DialogTitle>
-            <DialogDescription>查看或切换 Prompt 版本</DialogDescription>
-          </DialogHeader>
+      {/* Version History Sheet */}
+      <Sheet open={versionSheetOpen} onOpenChange={(open) => { if (!open) { setVersionSheetOpen(false); setPreviewVersion(null); } }}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>版本历史</SheetTitle>
+            <SheetDescription>查看或切换 Prompt 版本</SheetDescription>
+          </SheetHeader>
           <div className="flex-1 overflow-y-auto min-h-0">
             {previewVersion ? (
               <div className="flex flex-col overflow-hidden">
@@ -599,8 +607,8 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
               </div>
             )}
           </div>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };

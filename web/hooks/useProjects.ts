@@ -53,12 +53,13 @@ export function useProjects() {
   };
 
   const deleteProject = async (id: number) => {
+    const name = projects.find(p => p.id === id)?.name || '';
     try {
       await projectApi.delete(id);
-      showToast('删除成功', 'success');
+      showToast(`"${name}" 删除成功`, 'success');
     } catch (err) {
       console.error('Failed to delete project:', err);
-      showToast('删除失败', 'error');
+      showToast(`"${name}" 删除失败`, 'error');
       throw err;
     }
   };

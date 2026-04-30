@@ -85,7 +85,7 @@ export const CategoriesPage: React.FC<CategoriesPageProps> = ({
   };
 
   const handleDelete = async (id: number) => {
-    try { await deleteCategory(id); showToast('删除成功', 'success'); } catch (err) {}
+    try { await deleteCategory(id); } catch (err) {}
   };
 
   const totalAssoc = (id: number) => { const c = countMap[id]; return c ? c.skills + c.prompts + c.projects : 0; };

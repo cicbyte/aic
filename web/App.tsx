@@ -141,7 +141,10 @@ const AppContent: React.FC = () => {
           categories={categories.categories}
           projects={projects.projects}
           onBack={closePromptEditor}
-          onSaved={() => prompts.loadPrompts()}
+          onSaved={(newId) => {
+            prompts.loadPrompts();
+            if (newId) setPromptEditorId(newId);
+          }}
         />
       );
     }

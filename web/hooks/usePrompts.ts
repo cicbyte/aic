@@ -53,12 +53,13 @@ export function usePrompts() {
   };
 
   const deletePrompt = async (id: number) => {
+    const title = prompts.find(p => p.id === id)?.title || '';
     try {
       await promptApi.delete(id);
-      showToast('删除成功', 'success');
+      showToast(`"${title}" 删除成功`, 'success');
     } catch (err) {
       console.error('Failed to delete prompt:', err);
-      showToast('删除失败', 'error');
+      showToast(`"${title}" 删除失败`, 'error');
       throw err;
     }
   };

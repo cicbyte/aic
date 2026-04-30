@@ -45,13 +45,14 @@ export function useCategories() {
   };
 
   const deleteCategory = async (id: number) => {
+    const name = categories.find(c => c.id === id)?.name || '';
     try {
       await categoryApi.delete(id);
       await loadCategories();
-      showToast('删除成功', 'success');
+      showToast(`"${name}" 删除成功`, 'success');
     } catch (err) {
       console.error('Failed to delete category:', err);
-      showToast('删除失败', 'error');
+      showToast(`"${name}" 删除失败`, 'error');
       throw err;
     }
   };

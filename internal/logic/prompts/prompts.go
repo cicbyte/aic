@@ -59,25 +59,26 @@ func (s *sPrompts) CreatePrompt(ctx context.Context, req *api.PromptCreateReq) (
 
 func (s *sPrompts) UpdatePrompt(ctx context.Context, req *api.PromptUpdateReq) error {
 	return g.Try(ctx, func(ctx context.Context) {
-		m := dao.Prompts.Ctx(ctx).
-			Where(dao.Prompts.Columns().Id, req.Id).
-			Data(dao.Prompts.Columns().Title, req.Title).
-			Data(dao.Prompts.Columns().Description, req.Description).
-			Data(dao.Prompts.Columns().Content, req.Content)
-
+		data := g.Map{
+			dao.Prompts.Columns().Title:       req.Title,
+			dao.Prompts.Columns().Description: req.Description,
+			dao.Prompts.Columns().Content:     req.Content,
+		}
 		if req.CategoryId > 0 {
-			m = m.Data(dao.Prompts.Columns().CategoryId, req.CategoryId)
+			data[dao.Prompts.Columns().CategoryId] = req.CategoryId
 		} else {
-			m = m.Data(dao.Prompts.Columns().CategoryId, nil)
+			data[dao.Prompts.Columns().CategoryId] = nil
 		}
-
 		if req.ProjectId > 0 {
-			m = m.Data(dao.Prompts.Columns().ProjectId, req.ProjectId)
+			data[dao.Prompts.Columns().ProjectId] = req.ProjectId
 		} else {
-			m = m.Data(dao.Prompts.Columns().ProjectId, nil)
+			data[dao.Prompts.Columns().ProjectId] = nil
 		}
 
-		_, err := m.Update()
+		_, err := dao.Prompts.Ctx(ctx).
+			Where(dao.Prompts.Columns().Id, req.Id).
+			Data(data).
+			Update()
 		liberr.ErrIsNil(ctx, err, "更新提示失败")
 	})
 }
