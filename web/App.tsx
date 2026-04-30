@@ -85,8 +85,7 @@ const AppContent: React.FC = () => {
   };
 
   const closePromptEditor = () => {
-    const wasNew = promptNewProjectId !== null;
-    const fromProject = wasNew && promptNewProjectId !== 0 && projectDetailId !== null;
+    const fromProject = promptNewProjectId !== null && promptNewProjectId !== 0 && projectDetailId !== null;
     setPromptEditorId(null);
     setPromptNewProjectId(null);
     prompts.loadPrompts();

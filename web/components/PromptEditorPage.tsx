@@ -122,7 +122,7 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
       setDescription('');
       setContent('');
       setCategoryId('');
-      setProjectId(defaultProjectId ? String(defaultProjectId) : '');
+      setProjectId(defaultProjectId != null && defaultProjectId !== 0 ? String(defaultProjectId) : '');
       setVersion('');
       setPublishedVersion('');
     }
