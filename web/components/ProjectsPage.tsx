@@ -115,7 +115,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
                 <TableRow key={project.id} className="group"
                   onContextMenu={(e) => ctx.show(e, [
                     { label: '查看详情', icon: <Eye size={14} />, onClick: () => onProjectClick(project.id) },
-                    { label: '编辑', icon: <Edit3 size={14} />, onClick: () => {} },
+                    { label: '编辑', icon: <Edit3 size={14} />, onClick: () => onProjectClick(project.id) },
                     { divider: true, label: '删除', icon: <Trash2 size={14} />, danger: true, onClick: () => onDeleteProject(project.id) },
                   ])}
                 >

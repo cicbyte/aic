@@ -143,7 +143,7 @@ export const PromptsPage: React.FC<PromptsPageProps> = ({
                 <TableRow key={prompt.id} className="group"
                   onContextMenu={(e) => ctx.show(e, [
                     { label: '查看详情', icon: <Eye size={14} />, onClick: () => onPromptClick(prompt.id) },
-                    { label: '编辑', icon: <Edit3 size={14} />, onClick: () => {} },
+                    { label: '编辑', icon: <Edit3 size={14} />, onClick: () => onPromptClick(prompt.id) },
                     { divider: true, label: '删除', icon: <Trash2 size={14} />, danger: true, onClick: () => onDeletePrompt(prompt.id) },
                   ])}
                 >
