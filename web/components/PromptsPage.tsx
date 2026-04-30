@@ -47,7 +47,7 @@ export const PromptsPage: React.FC<PromptsPageProps> = ({
   const [keyword, setKeyword] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [projectId, setProjectId] = useState('');
-  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [favoriteFilter, setFavoriteFilter] = useState('');
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const ctx = useContextMenu();
 
@@ -59,9 +59,9 @@ export const PromptsPage: React.FC<PromptsPageProps> = ({
     keyword,
     categoryId: categoryId ? Number(categoryId) : undefined,
     projectId: projectId ? Number(projectId) : undefined,
-    isFavorite: showFavoritesOnly || undefined,
+    isFavorite: favoriteFilter === 'yes' ? true : favoriteFilter === 'no' ? false : undefined,
     ...overrides,
-  }), [keyword, categoryId, projectId, showFavoritesOnly]);
+  }), [keyword, categoryId, projectId, favoriteFilter]);
 
   const debouncedSearch = useCallback((value: string) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -85,10 +85,9 @@ export const PromptsPage: React.FC<PromptsPageProps> = ({
     loadPrompts(buildParams({ pageNum: 1 }));
   };
 
-  const handleToggleFavorites = () => {
-    const v = !showFavoritesOnly;
-    setShowFavoritesOnly(v);
-    loadPrompts({ ...buildParams(), isFavorite: v || undefined, pageNum: 1 });
+  const handleFavoriteFilter = (value: string) => {
+    setFavoriteFilter(value);
+    loadPrompts({ ...buildParams(), isFavorite: value === 'yes' ? true : value === 'no' ? false : undefined, pageNum: 1 });
   };
 
   const handlePageChange = (page: number) => {
@@ -114,10 +113,7 @@ export const PromptsPage: React.FC<PromptsPageProps> = ({
           </div>
           <SearchableSelect options={categoryOptions} value={categoryId} onChange={handleCategoryChange} placeholder="分类筛选" allLabel="全部分类" />
           <SearchableSelect options={projectOptions} value={projectId} onChange={handleProjectChange} placeholder="项目筛选" allLabel="全部项目" />
-          <Button size="sm" variant={showFavoritesOnly ? 'default' : 'outline'} onClick={handleToggleFavorites}>
-            <Heart size={14} className={`mr-1 ${showFavoritesOnly ? 'fill-current' : ''}`} />
-            收藏
-          </Button>
+          <SearchableSelect options={[{ value: 'yes', label: '已收藏' }, { value: 'no', label: '未收藏' }]} value={favoriteFilter} onChange={handleFavoriteFilter} placeholder="收藏筛选" allLabel="全部" />
           <div className="flex-1" />
           <Badge variant="secondary" className="text-xs">{totalCount} 项</Badge>
           <Button size="sm" onClick={onCreatePrompt}><Plus size={14} className="mr-1" />创建</Button>
