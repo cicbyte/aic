@@ -42,7 +42,6 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
   projectId,
   onBack,
   categories,
-  onEditProject,
   onPromptClick,
   onCreatePrompt,
   onDeletePrompt,
@@ -154,7 +153,6 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
             <Input value={keyword} onChange={(e) => handleSearchChange(e.target.value)} placeholder="搜索提示词..." className="h-8 pl-8 text-xs" />
           </div>
           <Badge variant="secondary" className="text-xs">{totalCount} 项</Badge>
-          <Button size="sm" onClick={onEditProject}>编辑项目</Button>
           <Button size="sm" onClick={onCreatePrompt}><Plus size={14} className="mr-1" />添加提示词</Button>
         </div>
       </div>

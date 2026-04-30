@@ -124,7 +124,7 @@ export const CategoriesPage: React.FC<CategoriesPageProps> = ({
               const counts = countMap[cat.id] || { skills: 0, prompts: 0, projects: 0 };
               const total = counts.skills + counts.prompts + counts.projects;
               return (
-                <div key={cat.id} className="flex items-center gap-3 px-6 py-3 hover:bg-muted/30 transition-colors group"
+                <div key={cat.id} className="flex items-center gap-3 px-6 py-3 hover:bg-muted/30 transition-colors group cursor-pointer"
                   onContextMenu={(e) => ctx.show(e, [
                     { label: '编辑', icon: <Edit3 size={14} />, onClick: () => openEditDialog(cat) },
                     { divider: true, label: '删除', icon: <Trash2 size={14} />, danger: true, onClick: () => handleDelete(cat.id) },

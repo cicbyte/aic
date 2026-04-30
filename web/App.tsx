@@ -152,7 +152,6 @@ const AppContent: React.FC = () => {
           projectId={projectDetailId}
           onBack={() => { setProjectDetailId(null); projects.loadProjects(); }}
           categories={categories.categories}
-          onEditProject={() => {}}
           onPromptClick={(id) => { setPromptEditorId(id); setPromptNewProjectId(null); }}
           onCreatePrompt={() => openNewPrompt(projectDetailId)}
           onDeletePrompt={(id) => prompts.deletePrompt(id)}

@@ -353,20 +353,24 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
 
       {/* Meta bar */}
       <div className="flex items-center gap-3 px-4 py-2 border-b border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
-        <SearchableSelect
-          options={categories.map(c => ({ value: String(c.id), label: c.name }))}
-          value={categoryId}
-          onChange={setCategoryId}
-          placeholder="选择分类"
-          allLabel="无分类"
-        />
-        <SearchableSelect
-          options={projects.map(p => ({ value: String(p.id), label: p.name }))}
-          value={projectId}
-          onChange={setProjectId}
-          placeholder="选择项目"
-          allLabel="无项目"
-        />
+        {!projectId && (
+          <SearchableSelect
+            options={categories.map(c => ({ value: String(c.id), label: c.name }))}
+            value={categoryId}
+            onChange={(v) => { setCategoryId(v); if (v) setProjectId(''); }}
+            placeholder="选择分类"
+            allLabel="无分类"
+          />
+        )}
+        {!categoryId && (
+          <SearchableSelect
+            options={projects.map(p => ({ value: String(p.id), label: p.name }))}
+            value={projectId}
+            onChange={(v) => { setProjectId(v); if (v) setCategoryId(''); }}
+            placeholder="选择项目"
+            allLabel="无项目"
+          />
+        )}
         <input
           type="text"
           value={description}
