@@ -1,0 +1,24 @@
+
+# CLI tool, only in development environment.
+# https://goframe.org/docs/cli
+gfcli:
+  gen:
+    dao:
+      - link: "mysql:root:hasd721ba9@tcp(192.168.31.93:39507)/aic"
+        descriptionTag: true
+
+  docker:
+    build: "-a amd64 -s linux -p temp -ew"
+    tagPrefixes:
+      - aic
+
+  build:
+    name:     "aic"
+    arch:     "amd64"
+    system:   "linux"
+    mod:      "none"
+    cgo:      0
+    packSrc:  "resource"
+    version:  "v1.0.0"
+    output:   "./bin"
+    extra:    ""

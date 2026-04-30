@@ -1,0 +1,72 @@
+
+# 构建输出
+/target/
+/dist/
+/build/
+
+# IDE文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# 依赖目录
+node_modules/
+vendor/
+
+# 日志文件
+*.log
+logs/
+
+# 临时文件
+*.tmp
+*.temp
+
+# 环境变量文件
+.env
+.env.local
+.env.*.local
+
+# 数据库文件
+*.db
+*.sqlite
+
+# 缓存文件
+.cache/
+
+# 技能数据目录（如果不需要版本控制，取消下面的注释）
+# /data/
+data/
+# /data/skills/*.pyc
+# /data/skills/__pycache__/
+# /data/skills/.DS_Store
+# /data/skills/*/dist/
+# /data/skills/*/build/
+# /data/skills/*/.bak
+
+# 包管理器文件
+Cargo.lock
+package-lock.json
+yarn.lock
+
+# 压缩文件
+*.tar.gz
+*.zip
+*.rar
+
+# 可执行文件
+*.exe
+skills_zip/
+*.tar
+resource/public/
+AGENTS.md
+
+.reference/
+.claude/
+CLAUDE.md
+design-system/

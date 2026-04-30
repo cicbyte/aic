@@ -1,0 +1,36 @@
+# https://goframe.org/docs/web/server-config-file-template
+server:
+  address: ":8000"
+  openapiPath: "/api.json"
+  swaggerPath: "/swagger"
+
+# https://goframe.org/docs/core/glog-config
+logger:
+  level: "all"
+  stdout: true
+
+# https://goframe.org/docs/core/gdb-config-file
+database:
+  default:
+    link: "mysql:root:hasd721ba9@tcp(192.168.31.93:39507)/aic-dev"
+
+# 技能文件存储配置
+skill_storage:
+  # 技能文件存储目录（相对路径或绝对路径）
+  # 相对路径相对于项目根目录，绝对路径直接使用
+  data_dir: "./data"
+  skills_dir: "skills"
+
+  # 技能包配置
+  max_file_size: "10MB"      # 单个文件最大大小
+  max_skill_size: "50MB"     # 整个技能包最大大小
+
+  # 压缩配置
+  enable_compression: true    # 是否启用压缩
+  compression_format: "zip"    # 压缩格式
+
+# API 限制配置
+api_limits:
+  max_upload_size: "10MB"
+  max_download_size: "50MB"
+  rate_limit_enabled: false

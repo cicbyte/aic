@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- 胶囊外壳 -->
+  <rect x="4" y="4" width="56" height="56" rx="28" fill="#6366f1"/>
+  <!-- 内部高光 -->
+  <rect x="6" y="4" width="52" height="52" rx="26" fill="url(#g1)" opacity="0.3"/>
+  <!-- 闪电符号 -->
+  <path d="M36 16L24 34h8l-4 14 12-18h-8l4-14z" fill="#fff"/>
+  <defs>
+    <linearGradient id="g1" x1="6" y1="4" x2="58" y2="56">
+      <stop stop-color="#fff"/>
+      <stop offset="1" stop-color="#6366f1" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+</svg>
