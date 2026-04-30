@@ -81,15 +81,16 @@ const AppContent: React.FC = () => {
 
   const openNewPrompt = (projectId?: number) => {
     setPromptEditorId(null);
-    setPromptNewProjectId(projectId ?? null);
+    setPromptNewProjectId(projectId != null ? projectId : 0);
   };
 
   const closePromptEditor = () => {
-    const wasNew = promptEditorId === null && promptNewProjectId !== null;
+    const wasNew = promptNewProjectId !== null;
+    const fromProject = wasNew && promptNewProjectId !== 0 && projectDetailId !== null;
     setPromptEditorId(null);
     setPromptNewProjectId(null);
     prompts.loadPrompts();
-    if (wasNew && projectDetailId !== null) return; // stay in project detail, don't navigate
+    if (fromProject) return;
     navigate('/prompts');
   };
 
@@ -133,7 +134,7 @@ const AppContent: React.FC = () => {
     }
 
     if (promptEditorId !== null || promptNewProjectId !== null) {
-      const id = promptNewProjectId !== null ? null : promptEditorId;
+      const id = promptEditorId;
       return (
         <PromptEditorPage
           promptId={id}
