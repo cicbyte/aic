@@ -53,16 +53,6 @@ export const PromptsPage: React.FC<PromptsPageProps> = ({
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
-  const buildParams = useCallback((overrides?: { pageNum?: number }) => ({
-    pageNum: 1,
-    pageSize: PAGE_SIZE,
-    keyword,
-    categoryId: categoryId ? Number(categoryId) : undefined,
-    projectId: projectId ? Number(projectId) : undefined,
-    isFavorite: favoriteFilter === 'yes' ? true : favoriteFilter === 'no' ? false : undefined,
-    ...overrides,
-  }), [keyword, categoryId, projectId, favoriteFilter]);
-
   const debouncedSearch = useCallback((value: string) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
@@ -77,21 +67,21 @@ export const PromptsPage: React.FC<PromptsPageProps> = ({
 
   const handleCategoryChange = (value: string) => {
     setCategoryId(value);
-    loadPrompts(buildParams({ pageNum: 1 }));
+    loadPrompts({ pageNum: 1, pageSize: PAGE_SIZE, keyword, categoryId: value ? Number(value) : undefined, projectId: projectId ? Number(projectId) : undefined, isFavorite: favoriteFilter === 'yes' ? true : favoriteFilter === 'no' ? false : undefined });
   };
 
   const handleProjectChange = (value: string) => {
     setProjectId(value);
-    loadPrompts(buildParams({ pageNum: 1 }));
+    loadPrompts({ pageNum: 1, pageSize: PAGE_SIZE, keyword, categoryId: categoryId ? Number(categoryId) : undefined, projectId: value ? Number(value) : undefined, isFavorite: favoriteFilter === 'yes' ? true : favoriteFilter === 'no' ? false : undefined });
   };
 
   const handleFavoriteFilter = (value: string) => {
     setFavoriteFilter(value);
-    loadPrompts({ ...buildParams(), isFavorite: value === 'yes' ? true : value === 'no' ? false : undefined, pageNum: 1 });
+    loadPrompts({ pageNum: 1, pageSize: PAGE_SIZE, keyword, categoryId: categoryId ? Number(categoryId) : undefined, projectId: projectId ? Number(projectId) : undefined, isFavorite: value === 'yes' ? true : value === 'no' ? false : undefined });
   };
 
   const handlePageChange = (page: number) => {
-    loadPrompts(buildParams({ pageNum: page }));
+    loadPrompts({ pageNum: page, pageSize: PAGE_SIZE, keyword, categoryId: categoryId ? Number(categoryId) : undefined, projectId: projectId ? Number(projectId) : undefined, isFavorite: favoriteFilter === 'yes' ? true : favoriteFilter === 'no' ? false : undefined });
   };
 
   useEffect(() => {
