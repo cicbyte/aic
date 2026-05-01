@@ -95,12 +95,12 @@ export const SkillsPage: React.FC<SkillsPageProps> = ({
         <div className="flex items-center gap-3">
           <div className="relative flex-1 max-w-xs">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input value={keyword} onChange={(e) => handleSearchChange(e.target.value)} placeholder="搜索技能..." className="h-8 pl-8 text-xs" />
+            <Input data-testid="search-input" value={keyword} onChange={(e) => handleSearchChange(e.target.value)} placeholder="搜索技能..." className="h-8 pl-8 text-xs" />
           </div>
           <SearchableSelect options={categoryOptions} value={categoryId} onChange={handleCategoryChange} placeholder="分类筛选" allLabel="全部分类" />
           <div className="flex-1" />
           <Badge variant="secondary" className="text-xs">{totalCount} 项</Badge>
-          <Button size="sm" onClick={onCreateSkill}><Plus size={14} className="mr-1" />创建</Button>
+          <Button data-testid="create-skill" size="sm" onClick={onCreateSkill}><Plus size={14} className="mr-1" />创建</Button>
           <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()}><Upload size={14} className="mr-1" />导入ZIP</Button>
           <input ref={fileInputRef} type="file" accept=".zip" onChange={handleImportZip} className="hidden" />
         </div>
@@ -133,7 +133,7 @@ export const SkillsPage: React.FC<SkillsPageProps> = ({
                   ])}
                 >
                   <TableCell className="py-2">
-                    <button onClick={(e) => { e.stopPropagation(); onToggleFavorite(skill.id); }} className="p-0">
+                    <button data-testid="favorite-btn" onClick={(e) => { e.stopPropagation(); onToggleFavorite(skill.id); }} className="p-0">
                       <Star size={14} className={skill.isFavorite ? 'text-yellow-500 fill-yellow-500' : 'text-muted-foreground hover:text-yellow-500'} />
                     </button>
                   </TableCell>
@@ -151,7 +151,7 @@ export const SkillsPage: React.FC<SkillsPageProps> = ({
                   <TableCell><span className="text-xs text-muted-foreground">{formatTime(skill.updatedAt)}</span></TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="sm" onClick={() => onDeleteSkill(skill.id)} className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive">
+                      <Button data-testid="delete-btn" variant="ghost" size="sm" onClick={() => onDeleteSkill(skill.id)} className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive">
                         <Trash2 size={13} />
                       </Button>
                     </div>

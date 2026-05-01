@@ -13,7 +13,6 @@ interface ProjectDetailPageProps {
   projectId: number;
   onBack: () => void;
   categories: Category[];
-  onEditProject: () => void;
   onPromptClick: (id: number) => void;
   onCreatePrompt: () => void;
   onDeletePrompt: (id: number) => void;
@@ -133,6 +132,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
       <div className="px-6 py-3 border-b border-border bg-card shrink-0">
         <div className="flex items-center gap-3">
           <button
+            data-testid="back-btn"
             onClick={onBack}
             className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
@@ -150,10 +150,10 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
           <div className="flex-1" />
           <div className="relative flex-1 max-w-xs">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input value={keyword} onChange={(e) => handleSearchChange(e.target.value)} placeholder="搜索提示词..." className="h-8 pl-8 text-xs" />
+            <Input data-testid="search-input" value={keyword} onChange={(e) => handleSearchChange(e.target.value)} placeholder="搜索提示词..." className="h-8 pl-8 text-xs" />
           </div>
           <Badge variant="secondary" className="text-xs">{totalCount} 项</Badge>
-          <Button size="sm" onClick={onCreatePrompt}><Plus size={14} className="mr-1" />添加提示词</Button>
+          <Button data-testid="create-prompt" size="sm" onClick={onCreatePrompt}><Plus size={14} className="mr-1" />添加提示词</Button>
         </div>
       </div>
 
@@ -207,7 +207,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
                   <TableCell><span className="text-xs text-muted-foreground">{formatTime(prompt.updatedAt)}</span></TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="sm" onClick={() => handleDeletePrompt(prompt.id)} className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive">
+                      <Button data-testid="delete-btn" variant="ghost" size="sm" onClick={() => handleDeletePrompt(prompt.id)} className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive">
                         <Trash2 size={13} />
                       </Button>
                     </div>

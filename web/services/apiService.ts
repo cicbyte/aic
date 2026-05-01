@@ -85,7 +85,7 @@ export const promptApi = {
   },
   detail: (id: number) => request<Prompt>(`/prompts/detail?id=${id}`),
   create: (data: { title: string; description?: string; content?: string; categoryId?: number; projectId?: number }) =>
-    request<{ id: number }>('/prompts/create', { method: 'POST', body: JSON.stringify(data) }),
+    request<{ id: number; promptId: number }>('/prompts/create', { method: 'POST', body: JSON.stringify(data) }),
   update: (data: { id: number; title: string; description?: string; content?: string; categoryId?: number; projectId?: number }) =>
     request<{}>('/prompts/update', { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: number) =>

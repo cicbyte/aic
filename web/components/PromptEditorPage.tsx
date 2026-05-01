@@ -199,7 +199,7 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
       return;
     }
     if (publishedVersion && !isNewer(ver, publishedVersion)) {
-      showToast('版本号必须大于已发布版本', 'warning');
+      showToast('版本号必须大于当前版本', 'warning');
       return;
     }
     for (const v of versions) {
@@ -286,7 +286,7 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
     }
   };
 
-  const isPublishedVersion = (v: string) => publishedVersion === v;
+  const isCurrentVersion = (v: string) => publishedVersion === v;
 
   if (isLoading) {
     return (
@@ -301,6 +301,7 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
       {/* Top bar */}
       <header className="flex items-center h-12 px-4 border-b border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 gap-3">
         <button
+          data-testid="back-btn"
           onClick={onBack}
           className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 transition-colors"
         >
@@ -309,6 +310,7 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
         </button>
         <div className="w-px h-5 bg-gray-200 dark:bg-slate-700" />
         <input
+          data-testid="prompt-title"
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -320,6 +322,7 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
           {/* Version badge */}
           {promptId && (
             <button
+              data-testid="version-btn"
               onClick={openVersionHistory}
               className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors ${
                 publishedVersion
@@ -330,15 +333,11 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
               }`}
             >
               <History size={12} />
-              {version ? `v${version}` : '未发布'}
-              {publishedVersion && (
-                <span className="text-[9px] font-semibold bg-emerald-500/20 text-emerald-600 px-1 py-0.5 rounded">
-                  已发布
-                </span>
-              )}
+              {publishedVersion ? `v${publishedVersion}` : version ? `v${version}` : '未发布'}
             </button>
           )}
           <button
+            data-testid="save-prompt"
             onClick={handleSave}
             disabled={(!title.trim() && !content) || (promptId && !hasUnsavedChanges) || isSaving}
             className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-white bg-primary hover:bg-primary-dark rounded-lg shadow-sm disabled:opacity-50 transition-colors"
@@ -353,6 +352,7 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
       <div className="flex items-center gap-3 px-4 py-2 border-b border-gray-100 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
         {!projectId && (
           <SearchableSelect
+            data-testid="category-select"
             options={categories.map(c => ({ value: String(c.id), label: c.name }))}
             value={categoryId}
             onChange={(v) => { setCategoryId(v); if (v) setProjectId(''); }}
@@ -362,6 +362,7 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
         )}
         {!categoryId && (
           <SearchableSelect
+            data-testid="project-select"
             options={projects.map(p => ({ value: String(p.id), label: p.name }))}
             value={projectId}
             onChange={(v) => { setProjectId(v); if (v) setCategoryId(''); }}
@@ -370,6 +371,7 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
           />
         )}
         <input
+          data-testid="prompt-description"
           type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
@@ -477,8 +479,8 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
                 <div className="flex items-center justify-between px-6 py-2.5 border-b border-border shrink-0">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold">v{previewVersion.version}</span>
-                    {isPublishedVersion(previewVersion.version) && (
-                      <span className="text-[9px] font-semibold bg-emerald-500/20 text-emerald-600 px-1 py-0.5 rounded">已发布</span>
+                    {isCurrentVersion(previewVersion.version) && (
+                      <span className="text-[9px] font-semibold bg-emerald-500/20 text-emerald-600 px-1 py-0.5 rounded">当前</span>
                     )}
                     <span className="text-[10px] text-muted-foreground">{previewVersion.title}</span>
                   </div>
@@ -487,7 +489,7 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
                       size="sm"
                       variant="outline"
                       onClick={() => handleSwitchVersion(previewVersion.version)}
-                      disabled={switchingVersion === previewVersion.version || isPublishedVersion(previewVersion.version)}
+                      disabled={switchingVersion === previewVersion.version}
                       className="h-7 text-[10px] px-2"
                     >
                       {switchingVersion === previewVersion.version ? <Loader2 size={10} className="animate-spin mr-1" /> : <ArrowRightLeft size={10} className="mr-1" />}
@@ -540,23 +542,26 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
-                              isPublishedVersion(v.version)
+                              isCurrentVersion(v.version)
                                 ? 'bg-emerald-500/20 text-emerald-600'
                                 : 'bg-muted text-muted-foreground'
                             }`}>
                               v{v.version}
                             </span>
                             <span className="text-sm font-medium truncate max-w-[180px]">{v.title}</span>
-                            {isPublishedVersion(v.version) && (
-                              <span className="text-[9px] font-semibold bg-emerald-500/20 text-emerald-600 px-1 py-0.5 rounded">已发布</span>
+                            {isCurrentVersion(v.version) && (
+                              <span className="text-[9px] font-semibold bg-emerald-500/20 text-emerald-600 px-1 py-0.5 rounded">当前</span>
                             )}
                           </div>
-                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                            {!isPublishedVersion(v.version) && (
+                          <div
+                            className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {!isCurrentVersion(v.version) && (
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={(e) => { e.stopPropagation(); handleSwitchVersion(v.version); }}
+                                onClick={() => handleSwitchVersion(v.version)}
                                 disabled={switchingVersion === v.version}
                                 className="h-7 w-7 p-0 text-muted-foreground hover:text-primary"
                                 title="切换到此版本"
@@ -567,7 +572,7 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={(e) => { e.stopPropagation(); handleRollback(v); }}
+                              onClick={() => handleRollback(v)}
                               className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                               title="回滚到此版本"
                             >
@@ -576,8 +581,8 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={(e) => { e.stopPropagation(); handleDeleteVersion(v.id, v.version); }}
-                              disabled={isPublishedVersion(v.version)}
+                              onClick={() => handleDeleteVersion(v.id, v.version)}
+                              disabled={isCurrentVersion(v.version)}
                               className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                               title="删除版本"
                             >

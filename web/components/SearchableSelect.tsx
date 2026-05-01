@@ -14,6 +14,7 @@ interface SearchableSelectProps {
   placeholder?: string;
   allLabel?: string;
   emptyText?: string;
+  'data-testid'?: string;
 }
 
 const SearchableSelect: React.FC<SearchableSelectProps> = ({
@@ -22,7 +23,8 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
   onChange,
   placeholder = '请选择',
   allLabel = '全部',
-  emptyText = '暂无选项'
+  emptyText = '暂无选项',
+  'data-testid': testId,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -120,7 +122,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
   const getTotalCount = () => options.reduce((sum, opt) => sum + (opt.count || 0), 0);
 
   return (
-    <div ref={containerRef} className="relative min-w-[160px]">
+    <div ref={containerRef} data-testid={testId} className="relative min-w-[160px]">
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}

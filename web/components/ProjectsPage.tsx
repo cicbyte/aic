@@ -85,12 +85,12 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
         <div className="flex items-center gap-3">
           <div className="relative flex-1 max-w-xs">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input value={keyword} onChange={(e) => handleSearchChange(e.target.value)} placeholder="搜索项目..." className="h-8 pl-8 text-xs" />
+            <Input data-testid="search-input" value={keyword} onChange={(e) => handleSearchChange(e.target.value)} placeholder="搜索项目..." className="h-8 pl-8 text-xs" />
           </div>
           <SearchableSelect options={categoryOptions} value={categoryId} onChange={handleCategoryChange} placeholder="分类筛选" allLabel="全部分类" />
           <div className="flex-1" />
           <Badge variant="secondary" className="text-xs">{totalCount} 项</Badge>
-          <Button size="sm" onClick={onCreateProject}><Plus size={14} className="mr-1" />创建</Button>
+          <Button data-testid="create-project" size="sm" onClick={onCreateProject}><Plus size={14} className="mr-1" />创建</Button>
         </div>
       </div>
 
@@ -120,7 +120,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
                   ])}
                 >
                   <TableCell className="py-2">
-                    <button onClick={(e) => { e.stopPropagation(); onToggleFavorite(project.id); }} className="p-0">
+                    <button data-testid="favorite-btn" onClick={(e) => { e.stopPropagation(); onToggleFavorite(project.id); }} className="p-0">
                       <Heart size={14} className={project.isFavorite ? 'text-red-500 fill-red-500' : 'text-muted-foreground hover:text-red-500'} />
                     </button>
                   </TableCell>
@@ -140,7 +140,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
                   <TableCell><span className="text-xs text-muted-foreground">{formatTime(project.updatedAt)}</span></TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="sm" onClick={() => onDeleteProject(project.id)} className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive">
+                      <Button data-testid="delete-btn" variant="ghost" size="sm" onClick={() => onDeleteProject(project.id)} className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive">
                         <Trash2 size={13} />
                       </Button>
                     </div>

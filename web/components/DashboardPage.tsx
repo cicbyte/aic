@@ -59,11 +59,12 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         {stats.map(({ icon: Icon, label, value, color }, i) => (
           <div
             key={label}
+            data-testid="stat-item"
             className={`flex-1 flex items-center gap-3 px-6 py-5 ${i < stats.length - 1 ? 'border-r border-border' : ''}`}
           >
             <Icon size={18} className={color} />
             <div>
-              <span className="text-xl font-bold">{value}</span>
+              <span data-testid="stat-value" className="text-xl font-bold">{value}</span>
               <span className="text-xs text-muted-foreground ml-1.5">{label}</span>
             </div>
           </div>
@@ -87,7 +88,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             </button>
           </div>
           {recentPrompts.length > 0 ? recentPrompts.map(p => (
-            <div key={p.id} className="flex items-center gap-3 px-6 py-2.5 border-b border-border/50 hover:bg-muted/30 transition-colors">
+            <div key={p.id} data-testid="recent-update" className="flex items-center gap-3 px-6 py-2.5 border-b border-border/50 hover:bg-muted/30 transition-colors">
               <div className="min-w-0 flex-1">
                 <span className="text-sm truncate block">{p.title}</span>
                 {p.description && (
@@ -127,7 +128,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             </button>
           </div>
           {recentSkills.length > 0 ? recentSkills.map(s => (
-            <div key={s.id} className="flex items-center gap-3 px-6 py-2.5 border-b border-border/50 hover:bg-muted/30 transition-colors">
+            <div key={s.id} data-testid="recent-update" className="flex items-center gap-3 px-6 py-2.5 border-b border-border/50 hover:bg-muted/30 transition-colors">
               <div className="min-w-0 flex-1">
                 <span className="text-sm truncate block">{s.name}</span>
                 {s.description && (

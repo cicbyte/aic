@@ -98,11 +98,11 @@ export const CategoriesPage: React.FC<CategoriesPageProps> = ({
         <div className="flex items-center gap-3">
           <div className="relative flex-1 max-w-xs">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input value={searchKeyword} onChange={(e) => setSearchKeyword(e.target.value)} placeholder="搜索分类..." className="h-8 pl-8 text-xs" />
+            <Input data-testid="search-input" value={searchKeyword} onChange={(e) => setSearchKeyword(e.target.value)} placeholder="搜索分类..." className="h-8 pl-8 text-xs" />
           </div>
           <div className="flex-1" />
           <Badge variant="secondary" className="text-xs">{categories.length} 个分类</Badge>
-          <Button size="sm" onClick={openCreateDialog}><Plus size={14} className="mr-1" />创建分类</Button>
+          <Button data-testid="create-category" size="sm" onClick={openCreateDialog}><Plus size={14} className="mr-1" />创建分类</Button>
         </div>
       </div>
 
@@ -124,7 +124,7 @@ export const CategoriesPage: React.FC<CategoriesPageProps> = ({
               const counts = countMap[cat.id] || { skills: 0, prompts: 0, projects: 0 };
               const total = counts.skills + counts.prompts + counts.projects;
               return (
-                <div key={cat.id} className="flex items-center gap-3 px-6 py-3 hover:bg-muted/30 transition-colors group cursor-pointer"
+                <div key={cat.id} data-testid="category-row" className="flex items-center gap-3 px-6 py-3 hover:bg-muted/30 transition-colors group cursor-pointer"
                   onContextMenu={(e) => ctx.show(e, [
                     { label: '编辑', icon: <Edit3 size={14} />, onClick: () => openEditDialog(cat) },
                     { divider: true, label: '删除', icon: <Trash2 size={14} />, danger: true, onClick: () => handleDelete(cat.id) },
@@ -146,7 +146,7 @@ export const CategoriesPage: React.FC<CategoriesPageProps> = ({
                   <span className="text-[10px] text-muted-foreground/40 w-8 text-right shrink-0">#{cat.sort}</span>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                     <Button variant="ghost" size="sm" onClick={() => openEditDialog(cat)} className="h-7 w-7 p-0 text-muted-foreground hover:text-primary"><Edit3 size={13} /></Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDelete(cat.id)} className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"><Trash2 size={13} /></Button>
+                    <Button data-testid="delete-btn" variant="ghost" size="sm" onClick={() => handleDelete(cat.id)} className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"><Trash2 size={13} /></Button>
                   </div>
                 </div>
               );
