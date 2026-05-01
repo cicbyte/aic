@@ -9,7 +9,7 @@ import (
 
 type ICategories interface {
 	List(ctx context.Context, req *api.CategoriesListReq) (total interface{}, res []*model.CategoriesInfo, err error)
-	Add(ctx context.Context, req *api.CategoriesAddReq) (err error)
+	Add(ctx context.Context, req *api.CategoriesAddReq) (categoryId int, err error)
 	Edit(ctx context.Context, req *api.CategoriesEditReq) (err error)
 	Delete(ctx context.Context, id int) (err error)
 	BatchDelete(ctx context.Context, ids []int) (err error)

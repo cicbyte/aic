@@ -5,6 +5,7 @@ export interface Precondition {
   api: string;
   body?: Record<string, unknown>;
   extract?: string;
+  ignoreError?: boolean;
 }
 
 export interface Step {

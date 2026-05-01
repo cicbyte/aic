@@ -78,6 +78,7 @@ export const CreateSkillModal: React.FC<CreateSkillModalProps> = ({
               onChange={setCategoryId}
               placeholder="选择分类"
               allLabel="全部分类"
+              data-testid="category-select"
             />
           </div>
         </div>

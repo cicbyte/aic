@@ -66,9 +66,9 @@ export const PromptsPage: React.FC<PromptsPageProps> = ({
   const debouncedSearch = useCallback((value: string) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      loadPrompts(buildParams({ pageNum: 1 }));
+      loadPrompts({ pageNum: 1, pageSize: PAGE_SIZE, keyword: value, categoryId: categoryId ? Number(categoryId) : undefined, projectId: projectId ? Number(projectId) : undefined, isFavorite: favoriteFilter === 'yes' ? true : favoriteFilter === 'no' ? false : undefined });
     }, 300);
-  }, [loadPrompts, buildParams]);
+  }, [loadPrompts]);
 
   const handleSearchChange = (value: string) => {
     setKeyword(value);

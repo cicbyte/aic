@@ -16,7 +16,7 @@ type categoriesController struct {
 
 func (c *categoriesController) Add(ctx context.Context, req *api.CategoriesAddReq) (res *api.CategoriesAddRes, err error) {
 	res = new(api.CategoriesAddRes)
-	err = service.Categories().Add(ctx, req)
+	res.CategoryId, err = service.Categories().Add(ctx, req)
 	return
 }
 

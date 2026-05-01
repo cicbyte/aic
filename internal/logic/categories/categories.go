@@ -43,18 +43,21 @@ func (s sCategories) List(ctx context.Context, req *api.CategoriesListReq) (tota
 	return
 }
 
-func (s sCategories) Add(ctx context.Context, req *api.CategoriesAddReq) (err error) {
+func (s sCategories) Add(ctx context.Context, req *api.CategoriesAddReq) (categoryId int, err error) {
 	err = g.Try(ctx, func(ctx context.Context) {
 		// TODO 查询是否已经存在
 
 		// add
-		_, err = dao.Categories.Ctx(ctx).Insert(do.Categories{
+		result, err := dao.Categories.Ctx(ctx).Insert(do.Categories{
 			Name:        req.Name,        // 分类名称，唯一
 			Description: req.Description, // 分类描述
 			Icon:        req.Icon,        // 分类图标标识或URL
 			Sort:        req.Sort,        // 数字越大越靠前
 		})
 		liberr.ErrIsNil(ctx, err, "新增分类失败")
+		id, err := result.LastInsertId()
+		liberr.ErrIsNil(ctx, err, "获取ID失败")
+		categoryId = int(id)
 	})
 	return
 }

@@ -70,3 +70,6 @@ AGENTS.md
 .claude/
 CLAUDE.md
 design-system/
+
+playwright-report/
+test-results/

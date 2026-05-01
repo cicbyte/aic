@@ -4,7 +4,7 @@ import * as yaml from 'js-yaml';
 import { expect, type Page, type Locator } from '@playwright/test';
 import type { RunContext, Step, TestCase, TestSuite, Precondition, Postcondition } from './types';
 
-const API_BASE = 'http://localhost:3052/api/v1';
+const API_BASE = 'http://localhost:3052';
 
 export function loadYamlFiles(dir: string): TestCase[] {
   const yamlDir = path.resolve(dir);
@@ -33,6 +33,7 @@ function resolveTemplate(str: string, vars: Record<string, string>): string {
 }
 
 async function executePreconditions(ctx: RunContext, preconditions: Precondition[]) {
+  ctx.vars['_ts'] = String(Date.now());
   for (const pre of preconditions) {
     const [method, urlPath] = pre.api.split(' ');
     const body = pre.body ? JSON.parse(JSON.stringify(pre.body)) : undefined;
@@ -40,6 +41,9 @@ async function executePreconditions(ctx: RunContext, preconditions: Precondition
       for (const key of Object.keys(body)) {
         if (typeof body[key] === 'string') {
           body[key] = resolveTemplate(body[key], ctx.vars);
+          if (/^\d+$/.test(body[key] as string)) {
+            body[key] = Number(body[key]);
+          }
         }
       }
     }
@@ -52,6 +56,7 @@ async function executePreconditions(ctx: RunContext, preconditions: Precondition
     const json = await response.json();
 
     if (json.code !== 0) {
+      if (pre.ignoreError) continue;
       throw new Error(`前置条件失败 [${pre.name}]: ${json.message}`);
     }
 
@@ -106,12 +111,12 @@ async function executeStep(ctx: RunContext, step: Step) {
 
   switch (step.action) {
     case 'click': {
-      const el = locator.startsWith('text=') ? page.getByText(locator.slice(5)) : page.locator(locator);
+      const el = locator.startsWith('text=') ? page.getByText(locator.slice(5)).first() : page.locator(locator).first();
       await el.click({ timeout: 10_000 });
       break;
     }
     case 'fill': {
-      const el = locator.startsWith('text=') ? page.getByText(locator.slice(5)) : page.locator(locator);
+      const el = locator.startsWith('text=') ? page.getByText(locator.slice(5)).first() : page.locator(locator).first();
       await el.fill(value);
       break;
     }
@@ -123,7 +128,7 @@ async function executeStep(ctx: RunContext, step: Step) {
       break;
     }
     case 'hover': {
-      const el = page.locator(locator);
+      const el = page.locator(locator).first();
       await el.hover();
       break;
     }
@@ -144,9 +149,13 @@ async function executeStep(ctx: RunContext, step: Step) {
       break;
     }
     case 'expect': {
-      const el: Locator = locator.startsWith('text=')
+      let el: Locator = locator.startsWith('text=')
         ? page.getByText(locator.slice(5))
         : page.locator(locator);
+
+      if (step.visible !== undefined && !step.count) {
+        el = el.first();
+      }
 
       if (step.visible !== undefined) {
         if (step.visible) {

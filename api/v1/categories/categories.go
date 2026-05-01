@@ -15,7 +15,8 @@ type CategoriesAddReq struct {
 }
 
 type CategoriesAddRes struct {
-	g.Meta `mime:"application/json" example:"string"`
+	g.Meta      `mime:"application/json" example:"string"`
+	CategoryId int `json:"categoryId"`
 }
 
 type CategoriesDelReq struct {

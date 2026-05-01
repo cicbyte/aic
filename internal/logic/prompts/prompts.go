@@ -147,7 +147,7 @@ func (s *sPrompts) ListPrompts(ctx context.Context, req *api.PromptListReq) (tot
 
 		if req.Keyword != "" {
 			columns := dao.Prompts.Columns()
-			m = m.Where(fmt.Sprintf("(%s like ? or %s like ?)",
+			m = m.Where(fmt.Sprintf("(prompts.%s like ? or prompts.%s like ?)",
 				columns.Title, columns.Description),
 				"%"+req.Keyword+"%", "%"+req.Keyword+"%")
 		}
@@ -322,7 +322,7 @@ func (s *sPrompts) ListProjects(ctx context.Context, req *api.ProjectListReq) (t
 
 		if req.Keyword != "" {
 			columns := dao.Projects.Columns()
-			m = m.Where(fmt.Sprintf("(%s like ? or %s like ?)",
+			m = m.Where(fmt.Sprintf("(prompts.%s like ? or prompts.%s like ?)",
 				columns.Name, columns.Description),
 				"%"+req.Keyword+"%", "%"+req.Keyword+"%")
 		}

@@ -451,6 +451,7 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
                 ) : (
                   <>
                     <Input
+                      data-testid="publish-version-input"
                       type="text"
                       value={publishVersionInput}
                       onChange={(e) => setPublishVersionInput(e.target.value)}
@@ -458,6 +459,7 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
                       className="h-7 w-28 text-xs font-mono"
                     />
                     <Button
+                      data-testid="publish-version-btn"
                       size="sm"
                       onClick={handlePublish}
                       disabled={isPublishing || !publishVersionInput.trim() || !/^\d+\.\d+\.\d+$/.test(publishVersionInput.trim())}

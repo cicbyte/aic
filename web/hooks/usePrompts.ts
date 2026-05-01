@@ -56,6 +56,7 @@ export function usePrompts() {
     const title = prompts.find(p => p.id === id)?.title || '';
     try {
       await promptApi.delete(id);
+      await loadPrompts();
       showToast(`"${title}" 删除成功`, 'success');
     } catch (err) {
       console.error('Failed to delete prompt:', err);

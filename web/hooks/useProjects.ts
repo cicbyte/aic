@@ -56,6 +56,7 @@ export function useProjects() {
     const name = projects.find(p => p.id === id)?.name || '';
     try {
       await projectApi.delete(id);
+      await loadProjects();
       showToast(`"${name}" 删除成功`, 'success');
     } catch (err) {
       console.error('Failed to delete project:', err);
