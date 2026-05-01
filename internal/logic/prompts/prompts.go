@@ -387,6 +387,11 @@ func (s *sPrompts) ToggleProjectFavorite(ctx context.Context, projectId int) (is
 }
 
 
+func (s *sPrompts) PromptVersionDelete(ctx context.Context, versionId int) error {
+	_, err := dao.PromptVersions.Ctx(ctx).Where(dao.PromptVersions.Columns().Id, versionId).Delete()
+	return err
+}
+
 func (s *sPrompts) PromptVersionList(ctx context.Context, promptId int) ([]*model.PromptVersionInfo, error) {
 	var versions []*model.PromptVersionInfo
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft, Save, Send, Loader2, Eye, Edit3, FileText, History,
-  RotateCcw, X, ArrowRightLeft, Plus
+  RotateCcw, X, ArrowRightLeft, Plus, Trash2
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from './ui/sheet';
 import { Button } from './ui/button';
@@ -221,6 +221,16 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
       showToast('发布失败', 'error');
     } finally {
       setIsPublishing(false);
+    }
+  };
+
+  const handleDeleteVersion = async (versionId: number, version: string) => {
+    try {
+      await promptApi.deleteVersion(versionId);
+      showToast(`v${version} 已删除`, 'success');
+      openVersionHistory();
+    } catch (err) {
+      showToast('删除失败', 'error');
     }
   };
 
@@ -562,6 +572,16 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
                               title="回滚到此版本"
                             >
                               <RotateCcw size={12} />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={(e) => { e.stopPropagation(); handleDeleteVersion(v.id, v.version); }}
+                              disabled={isPublishedVersion(v.version)}
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                              title="删除版本"
+                            >
+                              <Trash2 size={12} />
                             </Button>
                           </div>
                         </div>

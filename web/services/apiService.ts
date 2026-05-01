@@ -94,6 +94,8 @@ export const promptApi = {
     request<{ isFavorite: boolean }>('/prompts/toggle-favorite', { method: 'POST', body: JSON.stringify({ promptId: id }) }),
   versions: (promptId: number) =>
     request<{ versions: PromptVersion[] }>(`/prompts/versions?promptId=${promptId}`),
+  deleteVersion: (versionId: number) =>
+    request<{}>(`/prompts/version-delete?id=${versionId}`, { method: 'DELETE' }),
   rollback: (promptId: number, version: string) =>
     request<{}>('/prompts/rollback', { method: 'POST', body: JSON.stringify({ promptId, version }) }),
   publish: (promptId: number, version: string) =>

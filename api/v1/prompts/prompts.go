@@ -100,6 +100,15 @@ type PromptRollbackRes struct {
 	g.Meta `mime:"application/json"`
 }
 
+type PromptVersionDeleteReq struct {
+	g.Meta   `path:"/prompts/version-delete" method:"delete" tags:"提示" summary:"删除版本"`
+	Id       int `json:"id" v:"required#版本ID不能为空"`
+}
+
+type PromptVersionDeleteRes struct {
+	g.Meta `mime:"application/json"`
+}
+
 type PromptPublishReq struct {
 	g.Meta   `path:"/prompts/publish" method:"post" tags:"提示" summary:"发布版本"`
 	PromptId int    `json:"promptId" v:"required#提示ID不能为空"`

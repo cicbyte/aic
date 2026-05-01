@@ -62,6 +62,12 @@ func (c *promptsController) PromptVersionList(ctx context.Context, req *api.Prom
 	return
 }
 
+func (c *promptsController) PromptVersionDelete(ctx context.Context, req *api.PromptVersionDeleteReq) (res *api.PromptVersionDeleteRes, err error) {
+	res = new(api.PromptVersionDeleteRes)
+	err = service.Prompts().PromptVersionDelete(ctx, req.Id)
+	return
+}
+
 func (c *promptsController) PromptRollback(ctx context.Context, req *api.PromptRollbackReq) (res *api.PromptRollbackRes, err error) {
 	res = new(api.PromptRollbackRes)
 	err = service.Prompts().PromptRollback(ctx, req.PromptId, req.Version)
