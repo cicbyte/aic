@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft, Save, Send, Loader2, Eye, Edit3, FileText, History,
-  RotateCcw, X, ArrowRightLeft
+  RotateCcw, X, ArrowRightLeft, Plus
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from './ui/sheet';
 import { Button } from './ui/button';
@@ -103,14 +103,13 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
   const [switchingVersion, setSwitchingVersion] = useState<string | null>(null);
 
   // Publish dialog
-  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
   const [publishVersionInput, setPublishVersionInput] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
+  const [showPublishForm, setShowPublishForm] = useState(false);
 
   // Track saved state
-  const [savedContent, setSavedContent] = useState({ title: '', description: '', content: '' });
-  const hasUnsavedChanges = title !== savedContent.title || description !== savedContent.description || content !== savedContent.content;
-  const canPublish = promptId !== null && hasUnsavedChanges;
+  const [savedContent, setSavedContent] = useState({ title: '', description: '', content: '', categoryId: '', projectId: '' });
+  const hasUnsavedChanges = title !== savedContent.title || description !== savedContent.description || content !== savedContent.content || categoryId !== savedContent.categoryId || projectId !== savedContent.projectId;
 
   useEffect(() => {
     if (promptId) {
@@ -136,7 +135,7 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
       setTitle(data.title);
       setDescription(data.description || '');
       setContent(data.content || '');
-      setSavedContent({ title: data.title, description: data.description || '', content: data.content || '' });
+      setSavedContent({ title: data.title, description: data.description || '', content: data.content || '', categoryId: data.categoryId ? String(data.categoryId) : '', projectId: data.projectId ? String(data.projectId) : '' });
       setCategoryId(data.categoryId ? String(data.categoryId) : '');
       setProjectId(data.projectId ? String(data.projectId) : '');
       setVersion(data.version || '');
@@ -149,38 +148,36 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
     }
   };
 
+  const syncSavedSnapshot = () => {
+    setSavedContent({ title, description, content, categoryId, projectId });
+  };
+
+  const buildPayload = () => ({
+    title: title.trim(),
+    description: description.trim(),
+    content,
+    categoryId: categoryId ? Number(categoryId) : undefined,
+    projectId: projectId ? Number(projectId) : undefined,
+  });
+
   const handleSave = async () => {
-    if (!promptId && !title.trim() && !content) return;
+    if (!title.trim()) { showToast('请输入标题', 'warning'); return; }
     if (promptId && !hasUnsavedChanges) return;
-    if (!title.trim()) {
-      showToast('请输入标题', 'warning');
-      return;
-    }
+
     setIsSaving(true);
     try {
       if (promptId) {
-        await promptApi.update({
-          id: promptId,
-          title: title.trim(),
-          description: description.trim(),
-          content,
-          categoryId: categoryId ? Number(categoryId) : undefined,
-          projectId: projectId ? Number(projectId) : undefined,
-        });
+        await promptApi.update({ id: promptId, ...buildPayload() });
+        showToast('更新成功', 'success');
       } else {
-        const result = await promptApi.create({
-          title: title.trim(),
-          description: description.trim(),
-          content,
-          categoryId: categoryId ? Number(categoryId) : undefined,
-          projectId: projectId ? Number(projectId) : undefined,
-        });
+        const result = await promptApi.create(buildPayload());
         if (result?.promptId) onSaved(result.promptId);
+        else showToast('创建成功', 'success');
+        syncSavedSnapshot();
         setIsSaving(false);
         return;
       }
-      showToast('更新成功', 'success');
-      setSavedContent({ title: title.trim(), description: description.trim(), content });
+      syncSavedSnapshot();
       onSaved();
     } catch (err) {
       console.error('Failed to save prompt:', err);
@@ -191,12 +188,6 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
   };
 
   // Publish
-  const openPublishDialog = () => {
-    const next = getNextVersion(version || null, publishedVersion || null, versions);
-    setPublishVersionInput(next);
-    setPublishDialogOpen(true);
-  };
-
   const handlePublish = async () => {
     if (!promptId || !publishVersionInput.trim()) {
       showToast('请输入版本号', 'warning');
@@ -221,9 +212,9 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
     try {
       await promptApi.publish(promptId, ver);
       showToast(`已发布 v${ver}`, 'success');
-      setPublishDialogOpen(false);
+      setShowPublishForm(false);
       setPublishedVersion(ver);
-      setSavedContent({ title, description, content });
+      syncSavedSnapshot();
       onSaved();
     } catch (err) {
       console.error('Failed to publish:', err);
@@ -320,7 +311,7 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
           {promptId && (
             <button
               onClick={openVersionHistory}
-              className={`flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded-lg transition-all ${
+              className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors ${
                 publishedVersion
                   ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30'
                   : version
@@ -345,17 +336,6 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
             {isSaving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
             保存
           </button>
-          {promptId && (
-            <button
-              onClick={openPublishDialog}
-              disabled={!canPublish}
-              className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-white bg-emerald-500 hover:bg-emerald-600 rounded-lg shadow-sm disabled:opacity-50 transition-colors"
-              title={!canPublish ? '请先修改内容后再发布' : undefined}
-            >
-              <Send size={12} />
-              发布
-            </button>
-          )}
         </div>
       </header>
 
@@ -441,47 +421,46 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
         )}
       </div>
 
-      {/* Publish Sheet */}
-      <Sheet open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
+      {/* Version Management Sheet */}
+      <Sheet open={versionSheetOpen} onOpenChange={(open) => { if (!open) { setVersionSheetOpen(false); setPreviewVersion(null); setShowPublishForm(false); } }}>
         <SheetContent>
           <SheetHeader>
-            <SheetTitle>{publishedVersion ? '发布新版本' : '首次发布'}</SheetTitle>
-            <SheetDescription>设置发布版本号</SheetDescription>
+            <SheetTitle>版本管理</SheetTitle>
+            <SheetDescription>查看、切换或发布新版本</SheetDescription>
           </SheetHeader>
-          <div className="px-6 flex-1 space-y-4 overflow-y-auto">
-            <div>
-              <label className="block text-sm font-medium mb-1.5">版本号 <span className="text-red-400">*</span></label>
-              <Input
-                type="text"
-                value={publishVersionInput}
-                onChange={(e) => setPublishVersionInput(e.target.value)}
-                placeholder="例如 1.0.0"
-                className="font-mono"
-              />
-              <p className="text-[10px] text-muted-foreground mt-1.5">格式: x.y.z (主版本.次版本.修订号)</p>
+          {/* Publish new version form */}
+          {!previewVersion && (
+            <div className="px-6 py-3 border-b border-border bg-muted/30 shrink-0">
+              <div className="flex items-center gap-2">
+                {!showPublishForm ? (
+                  <Button size="sm" onClick={() => { setShowPublishForm(true); setPublishVersionInput(getNextVersion(version || null, publishedVersion || null, versions)); }}>
+                    <Plus size={12} className="mr-1" />发布新版本
+                  </Button>
+                ) : (
+                  <>
+                    <Input
+                      type="text"
+                      value={publishVersionInput}
+                      onChange={(e) => setPublishVersionInput(e.target.value)}
+                      placeholder="x.y.z"
+                      className="h-7 w-28 text-xs font-mono"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={handlePublish}
+                      disabled={isPublishing || !publishVersionInput.trim() || !/^\d+\.\d+\.\d+$/.test(publishVersionInput.trim())}
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white h-7 text-xs"
+                    >
+                      {isPublishing ? <Loader2 size={10} className="animate-spin" /> : <Send size={10} />}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setShowPublishForm(false)} className="h-7 w-7 p-0 text-muted-foreground">
+                      <X size={12} />
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-          <SheetFooter>
-            <Button variant="outline" onClick={() => setPublishDialogOpen(false)}>取消</Button>
-            <Button
-              onClick={handlePublish}
-              disabled={isPublishing || !publishVersionInput.trim()}
-              className="bg-emerald-500 hover:bg-emerald-600 text-white"
-            >
-              {isPublishing ? <Loader2 size={12} className="animate-spin mr-1" /> : <Send size={12} className="mr-1" />}
-              确认发布
-            </Button>
-          </SheetFooter>
-        </SheetContent>
-      </Sheet>
-
-      {/* Version History Sheet */}
-      <Sheet open={versionSheetOpen} onOpenChange={(open) => { if (!open) { setVersionSheetOpen(false); setPreviewVersion(null); } }}>
-        <SheetContent>
-          <SheetHeader>
-            <SheetTitle>版本历史</SheetTitle>
-            <SheetDescription>查看或切换 Prompt 版本</SheetDescription>
-          </SheetHeader>
+          )}
           <div className="flex-1 overflow-y-auto min-h-0">
             {previewVersion ? (
               <div className="flex flex-col overflow-hidden">

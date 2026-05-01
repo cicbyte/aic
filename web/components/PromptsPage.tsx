@@ -166,10 +166,10 @@ export const PromptsPage: React.FC<PromptsPageProps> = ({
                   </TableCell>
                   <TableCell><span className="text-xs text-muted-foreground">{prompt.version || '-'}</span></TableCell>
                   <TableCell>
-                    {prompt.publishedVersion
-                      ? <Badge variant="secondary" className="text-[10px] h-5 bg-emerald-500/10 text-emerald-600 border-0">已发布</Badge>
-                      : <Badge variant="secondary" className="text-[10px] h-5">草稿</Badge>
-                    }
+                    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${prompt.publishedVersion ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`} />
+                      {prompt.publishedVersion ? `v${prompt.publishedVersion}` : '草稿'}
+                    </span>
                   </TableCell>
                   <TableCell><span className="text-xs text-muted-foreground">{formatTime(prompt.updatedAt)}</span></TableCell>
                   <TableCell>
