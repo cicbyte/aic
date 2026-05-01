@@ -22,6 +22,7 @@ import (
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gfile"
+	"github.com/mozillazg/go-pinyin"
 )
 
 func init() {
@@ -584,6 +585,39 @@ func (s *sSkills) GetFavorites(ctx context.Context, page, pageSize int) (total i
 
 // ============ 辅助函数 ============
 
+func toSlug(name string) string {
+	// 先用拼音转换中文
+	a := pinyin.NewArgs()
+	a.Style = pinyin.Normal
+	words := pinyin.Pinyin(name, a)
+	var b strings.Builder
+	for _, syllables := range words {
+		for _, s := range syllables {
+			b.WriteString(s)
+			b.WriteRune(' ')
+		}
+	}
+	converted := b.String()
+	if strings.TrimSpace(converted) == "" {
+		converted = name
+	}
+
+	var result strings.Builder
+	for _, r := range strings.ToLower(converted) {
+		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' {
+			result.WriteRune(r)
+		} else if r == ' ' || r == '_' || r == '-' {
+			result.WriteRune('-')
+		}
+	}
+	s := strings.Trim(result.String(), "-")
+	s = collapseDashes(s)
+	if s == "" {
+		return "skill"
+	}
+	return s
+}
+
 func generateSkillMd(dirPath string, slug string, name string, description string) {
 	desc := strings.ReplaceAll(description, `"`, `\"`)
 	desc = strings.ReplaceAll(desc, "\n", " ")
@@ -591,7 +625,6 @@ func generateSkillMd(dirPath string, slug string, name string, description strin
 name: %s
 description: "%s"
 metadata:
-  display_name: "%s"
   version: "1.0.0"
 ---
 
@@ -604,25 +637,8 @@ Describe what this skill does and how Claude should use it.
 ## Examples
 
 Provide examples of using this skill.
-`, slug, desc, name, name)
+`, slug, desc, name)
 	_ = os.WriteFile(filepath.Join(dirPath, "SKILL.md"), []byte(skillMd), 0644)
-}
-
-func toSlug(name string) string {
-	var b strings.Builder
-	for _, r := range strings.ToLower(name) {
-		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' {
-			b.WriteRune(r)
-		} else if r == ' ' || r == '_' || r == '-' {
-			b.WriteRune('-')
-		}
-	}
-	s := strings.Trim(b.String(), "-")
-	s = collapseDashes(s)
-	if s == "" {
-		return "skill"
-	}
-	return s
 }
 
 func collapseDashes(s string) string {
@@ -960,8 +976,6 @@ func extractSkillNameFromContent(content string) string {
 
 	lines := strings.Split(content, "\n")
 	inYaml := false
-	displayName := ""
-	slugName := ""
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "---" {
@@ -969,20 +983,16 @@ func extractSkillNameFromContent(content string) string {
 			continue
 		}
 		if inYaml {
-			if strings.HasPrefix(trimmed, "display_name:") || strings.HasPrefix(trimmed, "display_name :") {
-				displayName = strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(trimmed, "display_name:"), "display_name :"))
-				displayName = strings.Trim(displayName, "\"'")
-			}
 			if strings.HasPrefix(trimmed, "name:") || strings.HasPrefix(trimmed, "name :") {
-				slugName = strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(trimmed, "name:"), "name :"))
-				slugName = strings.Trim(slugName, "\"'")
+				name := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(trimmed, "name:"), "name :"))
+				name = strings.Trim(name, "\"'")
+				if name != "" {
+					return name
+				}
 			}
 		}
 	}
-	if displayName != "" {
-		return displayName
-	}
-	return slugName
+	return ""
 }
 
 // buildFileTreeFromMap 从 map 构建文件树

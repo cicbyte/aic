@@ -11,6 +11,7 @@ import (
 	_ "github.com/gogf/gf/contrib/drivers/mysql/v2"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gfile"
+	"github.com/mozillazg/go-pinyin"
 )
 
 func main() {
@@ -93,15 +94,30 @@ func isUUIDPath(s string) bool {
 }
 
 func toSlug(name string) string {
+	a := pinyin.NewArgs()
+	a.Style = pinyin.Normal
+	words := pinyin.Pinyin(name, a)
 	var b strings.Builder
-	for _, r := range strings.ToLower(name) {
-		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' {
-			b.WriteRune(r)
-		} else if r == ' ' || r == '_' || r == '-' {
-			b.WriteRune('-')
+	for _, syllables := range words {
+		for _, s := range syllables {
+			b.WriteString(s)
+			b.WriteRune(' ')
 		}
 	}
-	s := strings.Trim(b.String(), "-")
+	converted := b.String()
+	if strings.TrimSpace(converted) == "" {
+		converted = name
+	}
+
+	var result strings.Builder
+	for _, r := range strings.ToLower(converted) {
+		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' {
+			result.WriteRune(r)
+		} else if r == ' ' || r == '_' || r == '-' {
+			result.WriteRune('-')
+		}
+	}
+	s := strings.Trim(result.String(), "-")
 	s = collapseDashes(s)
 	if s == "" {
 		return "skill"

@@ -272,6 +272,9 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
   const [content, setContent] = useState('');
   const saveDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Inline confirmation dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
+
   // Version management state
   const [versionPanelOpen, setVersionPanelOpen] = useState(false);
   const [tags, setTags] = useState<SkillTagInfo[]>([]);
@@ -409,14 +412,18 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
   };
 
   const handleDeleteTag = async (tag: string) => {
-    if (!confirm(`确定删除标签 ${tag} 吗？`)) return;
-    try {
-      await skillApi.tagDelete(skillId, tag);
-      showToast('标签已删除', 'success');
-      await loadVersions();
-    } catch (err) {
-      showToast('删除标签失败', 'error');
-    }
+    setConfirmDialog({
+      message: `确定删除标签 ${tag} 吗？`,
+      onConfirm: async () => {
+        try {
+          await skillApi.tagDelete(skillId, tag);
+          showToast('标签已删除', 'success');
+          await loadVersions();
+        } catch (err) {
+          showToast('删除标签失败', 'error');
+        }
+      },
+    });
   };
 
   const handlePreviewTag = async (tag: SkillTagInfo) => {
@@ -442,18 +449,22 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
   };
 
   const handleRollback = async (tag: string) => {
-    if (!confirm(`确定回滚到 ${tag} 吗？当前未保存的更改将丢失。`)) return;
-    setIsRollingBack(true);
-    try {
-      await skillApi.tagCheckout(skillId, tag);
-      showToast(`已回滚到 ${tag}`, 'success');
-      setVersionPanelOpen(false);
-      await loadDetail();
-    } catch (err) {
-      showToast('回滚失败', 'error');
-    } finally {
-      setIsRollingBack(false);
-    }
+    setConfirmDialog({
+      message: `确定回滚到 ${tag} 吗？当前未保存的更改将丢失。`,
+      onConfirm: async () => {
+        setIsRollingBack(true);
+        try {
+          await skillApi.tagCheckout(skillId, tag);
+          showToast(`已回滚到 ${tag}`, 'success');
+          setVersionPanelOpen(false);
+          await loadDetail();
+        } catch (err) {
+          showToast('回滚失败', 'error');
+        } finally {
+          setIsRollingBack(false);
+        }
+      },
+    });
   };
 
   const handleToggleDiff = async (hash: string) => {
@@ -556,14 +567,18 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
   };
 
   const handleDeleteSkill = async () => {
-    if (!confirm('确定要删除该技能吗？')) return;
-    try {
-      await skillApi.delete(skillId);
-      showToast('删除成功', 'success');
-      onBack();
-    } catch (err) {
-      showToast('删除失败', 'error');
-    }
+    setConfirmDialog({
+      message: '确定要删除该技能吗？',
+      onConfirm: async () => {
+        try {
+          await skillApi.delete(skillId);
+          showToast('删除成功', 'success');
+          onBack();
+        } catch (err) {
+          showToast('删除失败', 'error');
+        }
+      },
+    });
   };
 
   // ---- Persist helper ----
@@ -673,21 +688,23 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
   const deleteNode = (nodeId: string) => {
     const node = findNodeById(files, nodeId);
     if (!node) return;
-
     const childFiles = node.type === 'folder' ? collectFileIds(node.children || []) : [nodeId];
     const msg = node.type === 'folder'
       ? (childFiles.length > 0 ? `确定删除文件夹 "${node.name}" 及其 ${childFiles.length} 个文件吗？` : `确定删除空文件夹 "${node.name}" 吗？`)
       : `确定删除文件 "${node.name}" 吗？`;
-
-    if (!confirm(msg)) return;
-
-    const newFiles = removeNodeById(files, nodeId);
-    if (childFiles.includes(selectedFileId || '')) {
-      setSelectedFileId(null);
-      setContent('');
-    }
-    persistFiles(newFiles);
-    showToast(`已删除${node.type === 'folder' ? '文件夹' : '文件'}`, 'success');
+    setConfirmDialog({
+      message: msg,
+      onConfirm: () => {
+        const ids = node.type === 'folder' ? collectFileIds(node.children || []) : [nodeId];
+        const newFiles = removeNodeById(files, nodeId);
+        if (ids.includes(selectedFileId || '')) {
+          setSelectedFileId(null);
+          setContent('');
+        }
+        persistFiles(newFiles);
+        showToast(`已删除${node.type === 'folder' ? '文件夹' : '文件'}`, 'success');
+      },
+    });
   };
 
   // ---- Upload ----
@@ -744,12 +761,15 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
 
   const getNodeMenuItems = (node: FileNode) => {
     const items = [];
+    const isProtected = node.name.toLowerCase() === 'skill.md';
     if (node.type === 'folder') {
       items.push({ label: '新增文件', icon: <FilePlus size={14} />, onClick: () => { uploadTargetIdRef.current = node.id; addNode(node.id, 'file'); } });
       items.push({ label: '新增文件夹', icon: <FolderPlus size={14} />, onClick: () => addNode(node.id, 'folder') });
     }
-    items.push({ label: '重命名', icon: <Pencil size={14} />, onClick: () => renameNode(node.id) });
-    items.push({ divider: true, label: '删除', icon: <AlertTriangle size={14} />, danger: true, onClick: () => deleteNode(node.id) });
+    if (!isProtected) {
+      items.push({ label: '重命名', icon: <Pencil size={14} />, onClick: () => renameNode(node.id) });
+      items.push({ divider: true, label: '删除', icon: <AlertTriangle size={14} />, danger: true, onClick: () => deleteNode(node.id) });
+    }
     return items;
   };
 
@@ -766,7 +786,9 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
   ];
 
   const handleNodeContextMenu = (e: React.MouseEvent, node: FileNode) => {
-    treeCtx.show(e, getNodeMenuItems(node));
+    const items = getNodeMenuItems(node);
+    if (items.length === 0) return;
+    treeCtx.show(e, items);
   };
 
   const handleRootContextMenu = (e: React.MouseEvent) => {
@@ -1129,6 +1151,29 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Confirmation Dialog */}
+      {confirmDialog && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40">
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-gray-200 dark:border-slate-700 p-5 max-w-sm w-full mx-4">
+            <p className="text-sm text-gray-700 dark:text-slate-200 mb-4">{confirmDialog.message}</p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setConfirmDialog(null)}
+                className="px-3 py-1.5 text-xs font-medium text-gray-600 dark:text-slate-300 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded-lg transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => { confirmDialog.onConfirm(); setConfirmDialog(null); }}
+                className="px-3 py-1.5 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
+              >
+                确定
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
