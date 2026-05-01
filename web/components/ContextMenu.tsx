@@ -19,7 +19,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ items, x, y, onClose }
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleClick = () => onClose();
+    const handleClick = () => setTimeout(onClose, 0);
     document.addEventListener('click', handleClick);
     return () => document.removeEventListener('click', handleClick);
   }, [onClose]);
@@ -40,6 +40,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ items, x, y, onClose }
       ref={ref}
       className="fixed z-[100] min-w-[160px] py-1 bg-popover border border-border rounded-lg shadow-lg animate-in fade-in zoom-in-95 duration-100"
       style={{ left: x, top: y }}
+      onClick={(e) => e.stopPropagation()}
     >
       {items.map((item, i) => (
         <React.Fragment key={i}>
@@ -51,6 +52,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ items, x, y, onClose }
                 ? 'text-destructive hover:bg-destructive/10'
                 : 'text-foreground hover:bg-muted'
             }`}
+            data-context-menu-item={item.label}
           >
             {item.icon && <span className="w-4 h-4 shrink-0">{item.icon}</span>}
             {item.label}

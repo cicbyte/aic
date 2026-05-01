@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, Save, Download, Trash2, Loader2, File, Folder, FolderOpen, ChevronRight, ChevronDown, Plus, Pencil, FilePlus, FolderPlus, Upload, Archive } from 'lucide-react';
+import { ArrowLeft, Save, Download, Trash2, Loader2, File, Folder, FolderOpen, ChevronRight, ChevronDown, Plus, Pencil, FilePlus, FolderPlus, Upload, Archive, AlertTriangle } from 'lucide-react';
 import CodeMirror from '@uiw/react-codemirror';
 import { vscodeDark } from '@uiw/codemirror-theme-vscode';
 import { json } from '@codemirror/lang-json';
@@ -33,6 +33,8 @@ function getLanguageExtension(filename: string) {
   }
 }
 
+// ---- Tree utility functions ----
+
 function sortNodes(nodes: FileNode[]): FileNode[] {
   return [...nodes].sort((a, b) => {
     if (a.type === 'folder' && b.type === 'file') return -1;
@@ -55,13 +57,11 @@ function findNodeById(nodes: FileNode[], id: string): FileNode | null {
   return null;
 }
 
-function findParentNode(nodes: FileNode[], id: string): FileNode | null {
+function findNodeByPath(nodes: FileNode[], path: string): FileNode | null {
   for (const node of nodes) {
+    if (node.path === path) return node;
     if (node.children) {
-      for (const child of node.children) {
-        if (child.id === id) return node;
-      }
-      const found = findParentNode(node.children, id);
+      const found = findNodeByPath(node.children, path);
       if (found) return found;
     }
   }
@@ -91,8 +91,7 @@ function addNodeToParent(nodes: FileNode[], parentId: string | null, newNode: Fi
   }
   return nodes.map(node => {
     if (node.id === parentId) {
-      const children = sortNodes([...(node.children || []), newNode]);
-      return { ...node, children, type: 'folder' as const };
+      return { ...node, type: 'folder' as const, children: sortNodes([...(node.children || []), newNode]) };
     }
     if (node.children) {
       return { ...node, children: addNodeToParent(node.children, parentId, newNode) };
@@ -101,60 +100,54 @@ function addNodeToParent(nodes: FileNode[], parentId: string | null, newNode: Fi
   });
 }
 
-function updateNodePath(nodes: FileNode[], id: string, oldPath: string, newName: string): FileNode[] {
-  const oldDir = oldPath.substring(0, oldPath.lastIndexOf('/') + 1);
-  const newPath = oldDir + newName;
-  return nodes.map(node => {
-    if (node.id === id) {
+function renameNodeInTree(nodes: FileNode[], id: string, newName: string): FileNode[] {
+  const target = findNodeById(nodes, id);
+  if (!target) return nodes;
+  if (target.name === newName) return nodes;
+
+  const oldPath = target.path;
+  const lastSlash = oldPath.lastIndexOf('/');
+  const dir = lastSlash >= 0 ? oldPath.substring(0, lastSlash + 1) : '';
+  const newPath = dir + newName;
+
+  function updatePath(node: FileNode): FileNode {
+    if (node.path === oldPath) {
       return { ...node, name: newName, path: newPath };
     }
+    if (node.path.startsWith(oldPath + '/')) {
+      return { ...node, path: newPath + node.path.substring(oldPath.length) };
+    }
     if (node.children) {
-      return { ...node, children: updateNodePath(node.children, id, oldPath, newName) };
+      return { ...node, children: node.children.map(updatePath) };
     }
     return node;
-  });
+  }
+
+  return nodes.map(updatePath);
+}
+
+function checkNameExists(nodes: FileNode[], parentId: string | null, name: string, excludeId?: string): boolean {
+  const siblings = parentId ? findNodeById(nodes, parentId)?.children || [] : nodes;
+  return siblings.some(n => n.name === name && n.id !== excludeId);
+}
+
+function collectFileIds(nodes: FileNode[]): string[] {
+  const ids: string[] = [];
+  function walk(ns: FileNode[]) {
+    for (const n of ns) {
+      if (n.type === 'file') ids.push(n.id);
+      if (n.children) walk(n.children);
+    }
+  }
+  walk(nodes);
+  return ids;
 }
 
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-// FileTree component
-const FileTree: React.FC<{
-  nodes: FileNode[];
-  selectedId: string | null;
-  expandedFolders: Set<string>;
-  editingNodeId: string | null;
-  editingValue: string;
-  onSelectFile: (node: FileNode) => void;
-  onToggleFolder: (id: string) => void;
-  onContextMenu: (e: React.MouseEvent, node: FileNode) => void;
-  onEditingChange: (id: string, value: string) => void;
-  onEditConfirm: (id: string) => void;
-  onEditCancel: () => void;
-}> = ({ nodes, selectedId, expandedFolders, editingNodeId, editingValue, onSelectFile, onToggleFolder, onContextMenu, onEditingChange, onEditConfirm, onEditCancel }) => {
-  return (
-    <div className="space-y-0.5">
-      {nodes.map(node => (
-        <FileTreeItem
-          key={node.id}
-          node={node}
-          selectedId={selectedId}
-          expandedFolders={expandedFolders}
-          editingNodeId={editingNodeId}
-          editingValue={editingValue}
-          onSelectFile={onSelectFile}
-          onToggleFolder={onToggleFolder}
-          onContextMenu={onContextMenu}
-          onEditingChange={onEditingChange}
-          onEditConfirm={onEditConfirm}
-          onEditCancel={onEditCancel}
-          depth={0}
-        />
-      ))}
-    </div>
-  );
-};
+// ---- FileTreeItem component ----
 
 const FileTreeItem: React.FC<{
   node: FileNode;
@@ -165,8 +158,8 @@ const FileTreeItem: React.FC<{
   onSelectFile: (node: FileNode) => void;
   onToggleFolder: (id: string) => void;
   onContextMenu: (e: React.MouseEvent, node: FileNode) => void;
-  onEditingChange: (id: string, value: string) => void;
-  onEditConfirm: (id: string) => void;
+  onEditingChange: (value: string) => void;
+  onEditConfirm: () => void;
   onEditCancel: () => void;
   depth: number;
 }> = ({ node, selectedId, expandedFolders, editingNodeId, editingValue, onSelectFile, onToggleFolder, onContextMenu, onEditingChange, onEditConfirm, onEditCancel, depth }) => {
@@ -196,15 +189,11 @@ const FileTreeItem: React.FC<{
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      onEditConfirm(node.id);
+      onEditConfirm();
     } else if (e.key === 'Escape') {
       e.preventDefault();
       onEditCancel();
     }
-  };
-
-  const handleBlur = () => {
-    onEditConfirm(node.id);
   };
 
   return (
@@ -233,9 +222,8 @@ const FileTreeItem: React.FC<{
           <input
             ref={inputRef}
             value={editingValue}
-            onChange={(e) => onEditingChange(node.id, e.target.value)}
+            onChange={(e) => onEditingChange(e.target.value)}
             onKeyDown={handleKeyDown}
-            onBlur={handleBlur}
             onClick={(e) => e.stopPropagation()}
             className="flex-1 min-w-0 text-xs bg-background border border-primary rounded px-1 py-0 outline-none"
           />
@@ -268,6 +256,8 @@ const FileTreeItem: React.FC<{
   );
 };
 
+// ---- Main component ----
+
 export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBack, onUpdate }) => {
   const { showToast } = useToast();
   const [skill, setSkill] = useState<SkillDetail | null>(null);
@@ -279,16 +269,27 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
   const [content, setContent] = useState('');
   const saveDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Inline editing state
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState('');
-  const [pendingAddParentId, setPendingAddParentId] = useState<string | null>(null);
+  const editingIsAddRef = useRef(false);
+  const editingNodeRef = useRef<FileNode | null>(null);
+  const editingParentIdRef = useRef<string | null>(null);
 
+  // Context menus (3 independent instances to avoid collision)
   const treeCtx = useContextMenu();
   const rootCtx = useContextMenu();
   const addBtnCtx = useContextMenu();
 
+  // Hidden file inputs
   const fileInputRef = useRef<HTMLInputElement>(null);
   const zipInputRef = useRef<HTMLInputElement>(null);
+  const uploadTargetIdRef = useRef<string | null>(null);
+
+  // Prevent context menu from closing on blur
+  const isConfirmingRef = useRef(false);
+
+  // ---- Load ----
 
   useEffect(() => {
     loadDetail();
@@ -304,11 +305,15 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
       setSkill(detail);
       const sortedFiles = sortNodes(filesRes.files || []);
       setFiles(sortedFiles);
+      setEditingNodeId(null);
 
       const firstFile = findFirstFile(sortedFiles);
       if (firstFile) {
         setSelectedFileId(firstFile.id);
         setContent(firstFile.content || '');
+      } else {
+        setSelectedFileId(null);
+        setContent('');
       }
     } catch (err) {
       console.error('Failed to load skill detail:', err);
@@ -329,6 +334,8 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
     return null;
   };
 
+  // ---- Tree interactions ----
+
   const handleToggleFolder = (id: string) => {
     const newExpanded = new Set(expandedFolders);
     if (newExpanded.has(id)) {
@@ -346,37 +353,47 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
     }
   };
 
+  // ---- Editor save ----
+
   const handleContentChange = (value: string) => {
     setContent(value);
     if (saveDebounceRef.current) clearTimeout(saveDebounceRef.current);
     saveDebounceRef.current = setTimeout(() => {
-      handleSaveFiles(value);
+      debouncedSaveRef.current();
     }, 1000);
   };
 
-  const handleSaveFiles = async (newContent?: string) => {
-    if (!selectedFileId) return;
-    const contentToSave = newContent !== undefined ? newContent : content;
-    const updatedFiles = updateFileContent(files, selectedFileId, contentToSave);
-    setFiles(updatedFiles);
+  const debouncedSaveRef = useRef<() => void>(() => {});
 
-    setIsSaving(true);
-    try {
-      await skillApi.saveFiles(skillId, updatedFiles);
-    } catch (err) {
-      console.error('Failed to save:', err);
-      showToast('自动保存失败', 'error');
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  // Keep debouncedSaveRef up to date
+  useEffect(() => {
+    debouncedSaveRef.current = async () => {
+      if (!selectedFileId) return;
+      const updatedFiles = updateFileContent(files, selectedFileId, content);
+      setFiles(updatedFiles);
+      setIsSaving(true);
+      try {
+        await skillApi.saveFiles(skillId, updatedFiles);
+      } catch (err) {
+        console.error('Failed to auto-save:', err);
+        showToast('自动保存失败', 'error');
+      } finally {
+        setIsSaving(false);
+      }
+    };
+  }, [files, selectedFileId, content, skillId]);
 
   const handleSave = async () => {
+    if (!selectedFileId) {
+      showToast('请先选择文件', 'warning');
+      return;
+    }
+    if (saveDebounceRef.current) clearTimeout(saveDebounceRef.current);
+    const updatedFiles = updateFileContent(files, selectedFileId, content);
+    setFiles(updatedFiles);
     setIsSaving(true);
     try {
-      const updatedFiles = updateFileContent(files, selectedFileId || '', content);
       await skillApi.saveFiles(skillId, updatedFiles);
-      setFiles(updatedFiles);
       showToast('保存成功', 'success');
     } catch (err) {
       console.error('Failed to save:', err);
@@ -390,7 +407,8 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
     skillApi.download(skillId);
   };
 
-  const handleDelete = async () => {
+  const handleDeleteSkill = async () => {
+    if (!confirm('确定要删除该技能吗？')) return;
     try {
       await skillApi.delete(skillId);
       showToast('删除成功', 'success');
@@ -400,7 +418,7 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
     }
   };
 
-  // ---- File tree operations ----
+  // ---- Persist helper ----
 
   const persistFiles = useCallback(async (newFiles: FileNode[]) => {
     setFiles(newFiles);
@@ -415,11 +433,75 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
     }
   }, [skillId]);
 
+  // ---- File tree operations ----
+
+  const startEditing = (node: FileNode, isAdd: boolean, parentId: string | null = null) => {
+    editingIsAddRef.current = isAdd;
+    editingNodeRef.current = node;
+    editingParentIdRef.current = parentId;
+    setEditingNodeId(node.id);
+    setEditingValue(node.name);
+  };
+
+  const confirmEdit = useCallback(() => {
+    const value = editingValue.trim();
+    const node = editingNodeRef.current;
+    const isAdd = editingIsAddRef.current;
+
+    if (!value) {
+      if (isAdd && node) {
+        setFiles(prev => removeNodeById(prev, node.id));
+      }
+      setEditingNodeId(null);
+      editingNodeRef.current = null;
+      return;
+    }
+
+    // Validate: no empty names, no slashes, no duplicate names
+    if (value.includes('/') || value.includes('\\')) {
+      showToast('名称不能包含 / 或 \\', 'warning');
+      return;
+    }
+
+    let newFiles = files;
+    if (isAdd && node) {
+      if (checkNameExists(files, editingParentIdRef.current, value)) {
+        showToast(`"${value}" 已存在`, 'warning');
+        return;
+      }
+      const dir = node.path.substring(0, node.path.lastIndexOf('/'));
+      const newPath = dir ? `${dir}/${value}` : value;
+      newFiles = files.map(n => n.id === node.id ? { ...n, name: value, path: newPath } : n);
+    } else if (node && node.name !== value) {
+      if (checkNameExists(files, editingParentIdRef.current, value, node.id)) {
+        showToast(`"${value}" 已存在`, 'warning');
+        return;
+      }
+      newFiles = renameNodeInTree(files, node.id, value);
+    }
+
+    isConfirmingRef.current = true;
+    setEditingNodeId(null);
+    editingNodeRef.current = null;
+
+    persistFiles(newFiles).finally(() => {
+      setTimeout(() => { isConfirmingRef.current = false; }, 50);
+    });
+  }, [files, editingValue, persistFiles]);
+
+  const cancelEdit = useCallback(() => {
+    if (editingIsAddRef.current && editingNodeRef.current) {
+      setFiles(prev => removeNodeById(prev, editingNodeRef.current.id));
+    }
+    setEditingNodeId(null);
+    editingNodeRef.current = null;
+  }, []);
+
   const addNode = (parentId: string | null, type: 'file' | 'folder') => {
     const parent = parentId ? findNodeById(files, parentId) : null;
-    const parentPath = parent ? (parent.type === 'folder' ? parent.path : parent.path.substring(0, parent.path.lastIndexOf('/'))) : '';
+    const dir = parent ? (parent.type === 'folder' ? parent.path : parent.path.substring(0, parent.path.lastIndexOf('/'))) : '';
     const defaultName = type === 'file' ? 'untitled.txt' : 'untitled';
-    const path = parentPath ? `${parentPath}/${defaultName}` : defaultName;
+    const path = dir ? `${dir}/${defaultName}` : defaultName;
     const newNode: FileNode = { id: generateId(), name: defaultName, path, type, content: type === 'file' ? '' : undefined };
     const newFiles = addNodeToParent(files, parentId, newNode);
     setFiles(newFiles);
@@ -428,90 +510,66 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
       newExpanded.add(newNode.id);
       setExpandedFolders(newExpanded);
     }
-    setPendingAddParentId(parentId);
-    setEditingNodeId(newNode.id);
-    setEditingValue(defaultName);
+    startEditing(newNode, true, parentId);
   };
 
   const renameNode = (nodeId: string) => {
     const node = findNodeById(files, nodeId);
     if (!node) return;
-    setEditingNodeId(nodeId);
-    setEditingValue(node.name);
-  };
-
-  const handleEditConfirm = (nodeId: string) => {
-    const value = editingValue.trim();
-    if (!value) {
-      if (pendingAddParentId !== null) {
-        setFiles(prev => removeNodeById(prev, nodeId));
-      }
-      setEditingNodeId(null);
-      setPendingAddParentId(null);
-      return;
-    }
-
-    let newFiles = files;
-    if (pendingAddParentId !== null) {
-      // Confirm add
-      const node = findNodeById(files, nodeId);
-      if (node) {
-        const parent = node.path.substring(0, node.path.lastIndexOf('/'));
-        const newPath = parent ? `${parent}/${value}` : value;
-        const updated = { ...node, name: value, path: newPath };
-        newFiles = files.map(n => n.id === nodeId ? updated : n);
-      }
-      setPendingAddParentId(null);
-    } else {
-      // Confirm rename
-      const node = findNodeById(files, nodeId);
-      if (node && node.name !== value) {
-        newFiles = updateNodePath(files, nodeId, node.path, value);
-      }
-    }
-
-    setEditingNodeId(null);
-    persistFiles(newFiles);
-  };
-
-  const handleEditCancel = () => {
-    if (pendingAddParentId !== null) {
-      setFiles(prev => removeNodeById(prev, editingNodeId || ''));
-      setPendingAddParentId(null);
-    }
-    setEditingNodeId(null);
-  };
-
-  const handleEditingChange = (_id: string, value: string) => {
-    setEditingValue(value);
+    const lastSlash = node.path.lastIndexOf('/');
+    const parentPath = lastSlash > 0 ? node.path.substring(0, lastSlash) : '';
+    const parentNode = parentPath ? findNodeByPath(files, parentPath) : null;
+    startEditing(node, false, parentNode?.id || null);
   };
 
   const deleteNode = (nodeId: string) => {
+    const node = findNodeById(files, nodeId);
+    if (!node) return;
+
+    const childFiles = node.type === 'folder' ? collectFileIds(node.children || []) : [nodeId];
+    const msg = node.type === 'folder'
+      ? (childFiles.length > 0 ? `确定删除文件夹 "${node.name}" 及其 ${childFiles.length} 个文件吗？` : `确定删除空文件夹 "${node.name}" 吗？`)
+      : `确定删除文件 "${node.name}" 吗？`;
+
+    if (!confirm(msg)) return;
+
     const newFiles = removeNodeById(files, nodeId);
-    if (selectedFileId === nodeId) {
+    if (childFiles.includes(selectedFileId || '')) {
       setSelectedFileId(null);
       setContent('');
     }
     persistFiles(newFiles);
+    showToast(`已删除${node.type === 'folder' ? '文件夹' : '文件'}`, 'success');
   };
+
+  // ---- Upload ----
 
   const handleUploadFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const fileList = e.target.files;
     if (!fileList || fileList.length === 0) return;
+    const parentId = uploadTargetIdRef.current;
+    uploadTargetIdRef.current = null;
 
-    const readFilePromises = Array.from(fileList).map(file => {
-      return new Promise<{ name: string; content: string }>((resolve) => {
+    const readFilePromises = Array.from(fileList).map(file =>
+      new Promise<{ name: string; content: string }>((resolve) => {
         const reader = new FileReader();
         reader.onload = () => resolve({ name: file.name, content: reader.result as string });
         reader.readAsText(file);
-      });
-    });
+      })
+    );
 
     Promise.all(readFilePromises).then((results) => {
       let newFiles = [...files];
       for (const { name, content } of results) {
+        if (checkNameExists(newFiles, parentId, name)) {
+          showToast(`"${name}" 已存在，已跳过`, 'warning');
+          continue;
+        }
         const id = generateId();
-        newFiles = addNodeToParent(newFiles, null, { id, name, path: name, type: 'file', content });
+        const parent = parentId ? findNodeById(newFiles, parentId) : null;
+        const dir = parent ? (parent.type === 'folder' ? parent.path : parent.path.substring(0, parent.path.lastIndexOf('/'))) : '';
+        const path = dir ? `${dir}/${name}` : name;
+        newFiles = addNodeToParent(newFiles, parentId, { id, name, path, type: 'file', content });
       }
       persistFiles(sortNodes(newFiles));
       showToast(`已上传 ${results.length} 个文件`, 'success');
@@ -534,26 +592,28 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
     if (zipInputRef.current) zipInputRef.current.value = '';
   };
 
+  // ---- Context menu builders ----
+
   const getNodeMenuItems = (node: FileNode) => {
     const items = [];
     if (node.type === 'folder') {
-      items.push({ label: '新增文件', icon: <FilePlus size={14} />, onClick: () => addNode(node.id, 'file') });
+      items.push({ label: '新增文件', icon: <FilePlus size={14} />, onClick: () => { uploadTargetIdRef.current = node.id; addNode(node.id, 'file'); } });
       items.push({ label: '新增文件夹', icon: <FolderPlus size={14} />, onClick: () => addNode(node.id, 'folder') });
     }
     items.push({ label: '重命名', icon: <Pencil size={14} />, onClick: () => renameNode(node.id) });
-    items.push({ divider: true, label: '删除', icon: <Trash2 size={14} />, danger: true, onClick: () => deleteNode(node.id) });
+    items.push({ divider: true, label: '删除', icon: <AlertTriangle size={14} />, danger: true, onClick: () => deleteNode(node.id) });
     return items;
   };
 
   const getRootMenuItems = () => [
-    { label: '新增文件', icon: <FilePlus size={14} />, onClick: () => addNode(null, 'file') },
+    { label: '新增文件', icon: <FilePlus size={14} />, onClick: () => { uploadTargetIdRef.current = null; addNode(null, 'file'); } },
     { label: '新增文件夹', icon: <FolderPlus size={14} />, onClick: () => addNode(null, 'folder') },
-    { divider: true, label: '上传文件', icon: <Upload size={14} />, onClick: () => fileInputRef.current?.click() },
+    { divider: true, label: '上传文件', icon: <Upload size={14} />, onClick: () => { uploadTargetIdRef.current = null; fileInputRef.current?.click(); } },
     { label: '上传 ZIP', icon: <Archive size={14} />, onClick: () => zipInputRef.current?.click() },
   ];
 
   const getAddBtnMenuItems = () => [
-    { label: '新增文件', icon: <FilePlus size={14} />, onClick: () => addNode(null, 'file') },
+    { label: '新增文件', icon: <FilePlus size={14} />, onClick: () => { uploadTargetIdRef.current = null; addNode(null, 'file'); } },
     { label: '新增文件夹', icon: <FolderPlus size={14} />, onClick: () => addNode(null, 'folder') },
   ];
 
@@ -620,7 +680,7 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
             下载
           </button>
           <button
-            onClick={handleDelete}
+            onClick={handleDeleteSkill}
             className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
           >
             <Trash2 size={12} />
@@ -644,19 +704,23 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
           </div>
           <div className="p-2" onContextMenu={handleRootContextMenu}>
             {files.length > 0 ? (
-              <FileTree
-                nodes={files}
-                selectedId={selectedFileId}
-                expandedFolders={expandedFolders}
-                editingNodeId={editingNodeId}
-                editingValue={editingValue}
-                onSelectFile={handleSelectFile}
-                onToggleFolder={handleToggleFolder}
-                onContextMenu={handleNodeContextMenu}
-                onEditingChange={handleEditingChange}
-                onEditConfirm={handleEditConfirm}
-                onEditCancel={handleEditCancel}
-              />
+              files.map(node => (
+                <FileTreeItem
+                  key={node.id}
+                  node={node}
+                  selectedId={selectedFileId}
+                  expandedFolders={expandedFolders}
+                  editingNodeId={editingNodeId}
+                  editingValue={editingValue}
+                  onSelectFile={handleSelectFile}
+                  onToggleFolder={handleToggleFolder}
+                  onContextMenu={handleNodeContextMenu}
+                  onEditingChange={setEditingValue}
+                  onEditConfirm={confirmEdit}
+                  onEditCancel={cancelEdit}
+                  depth={0}
+                />
+              ))
             ) : (
               <p className="text-xs text-gray-400 dark:text-slate-500 px-2 py-4 text-center">暂无文件</p>
             )}

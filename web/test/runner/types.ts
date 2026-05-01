@@ -9,7 +9,7 @@ export interface Precondition {
 }
 
 export interface Step {
-  action: 'click' | 'fill' | 'wait' | 'expect' | 'select' | 'hover' | 'keyboard' | 'screenshot' | 'assertUrl';
+  action: 'click' | 'rightclick' | 'fill' | 'wait' | 'expect' | 'select' | 'hover' | 'keyboard' | 'screenshot' | 'assertUrl';
   locator?: string;
   value?: string;
   visible?: boolean;

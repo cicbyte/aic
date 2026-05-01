@@ -115,6 +115,11 @@ async function executeStep(ctx: RunContext, step: Step) {
       await el.click({ timeout: 10_000 });
       break;
     }
+    case 'rightclick': {
+      const el = locator.startsWith('text=') ? page.getByText(locator.slice(5)).first() : page.locator(locator).first();
+      await el.click({ button: 'right', timeout: 10_000 });
+      break;
+    }
     case 'fill': {
       const el = locator.startsWith('text=') ? page.getByText(locator.slice(5)).first() : page.locator(locator).first();
       await el.fill(value);
@@ -197,6 +202,11 @@ export async function runTestCase(page: Page, testCase: TestCase) {
   };
 
   try {
+    // Auto-accept all confirm/alert dialogs
+    page.on('dialog', async dialog => {
+      await dialog.accept();
+    });
+
     if (testCase.preconditions?.length) {
       await executePreconditions(ctx, testCase.preconditions);
     }
