@@ -15,29 +15,31 @@ type PromptVersionsDao struct {
 }
 
 type PromptVersionsColumns struct {
-	Id         string
-	PromptId   string
-	Version    string
-	Title      string
+	Id          string
+	PromptId    string
+	Version     string
+	Title       string
 	Description string
-	Content    string
-	Tags       string
-	CategoryId string
-	ProjectId  string
-	CreatedAt  string
+	Content     string
+	Tags        string
+	CategoryId  string
+	ProjectId   string
+	PublishNote string
+	CreatedAt   string
 }
 
 var promptVersionsColumns = PromptVersionsColumns{
-	Id:         "id",
-	PromptId:   "prompt_id",
-	Version:    "version",
-	Title:      "title",
+	Id:          "id",
+	PromptId:    "prompt_id",
+	Version:     "version",
+	Title:       "title",
 	Description: "description",
-	Content:    "content",
-	Tags:       "tags",
-	CategoryId: "category_id",
-	ProjectId:  "project_id",
-	CreatedAt:  "created_at",
+	Content:     "content",
+	Tags:        "tags",
+	CategoryId:  "category_id",
+	ProjectId:   "project_id",
+	PublishNote: "publish_note",
+	CreatedAt:   "created_at",
 }
 
 func NewPromptVersionsDao(handlers ...gdb.ModelHandler) *PromptVersionsDao {

@@ -64,6 +64,7 @@ export interface PromptVersion {
   tags: string;
   categoryId: number;
   projectId: number;
+  publishNote?: string;
   createdAt: string;
 }
 

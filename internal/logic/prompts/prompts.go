@@ -414,6 +414,7 @@ func (s *sPrompts) PromptVersionList(ctx context.Context, promptId int) ([]*mode
 				Tags:        entity[dao.PromptVersions.Columns().Tags].String(),
 				CategoryId:  int(entity[dao.PromptVersions.Columns().CategoryId].Int()),
 				ProjectId:   int(entity[dao.PromptVersions.Columns().ProjectId].Int()),
+				PublishNote: entity[dao.PromptVersions.Columns().PublishNote].String(),
 				CreatedAt:   entity[dao.PromptVersions.Columns().CreatedAt].String(),
 			})
 		}
@@ -444,7 +445,7 @@ func (s *sPrompts) PromptRollback(ctx context.Context, promptId int, version str
 	})
 }
 
-func (s *sPrompts) PromptPublish(ctx context.Context, promptId int, version string) error {
+func (s *sPrompts) PromptPublish(ctx context.Context, promptId int, version string, publishNote string) error {
 	return g.Try(ctx, func(ctx context.Context) {
 		entity, err := dao.Prompts.Ctx(ctx).
 			Where(dao.Prompts.Columns().Id, promptId).
@@ -463,6 +464,7 @@ func (s *sPrompts) PromptPublish(ctx context.Context, promptId int, version stri
 			Tags:        entity[dao.Prompts.Columns().Tags].String(),
 			CategoryId:  entity[dao.Prompts.Columns().CategoryId].Int(),
 			ProjectId:   entity[dao.Prompts.Columns().ProjectId].Int(),
+			PublishNote: publishNote,
 		})
 		liberr.ErrIsNil(ctx, err, "保存版本快照失败")
 

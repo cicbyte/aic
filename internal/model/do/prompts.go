@@ -25,5 +25,6 @@ type PromptVersions struct {
 	Tags        interface{}
 	CategoryId  interface{}
 	ProjectId   interface{}
+	PublishNote interface{}
 	CreatedAt   interface{}
 }

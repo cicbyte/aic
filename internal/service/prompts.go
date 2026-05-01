@@ -16,7 +16,7 @@ type IPrompts interface {
 	PromptVersionList(ctx context.Context, promptId int) ([]*model.PromptVersionInfo, error)
 	PromptVersionDelete(ctx context.Context, versionId int) error
 	PromptRollback(ctx context.Context, promptId int, version string) error
-	PromptPublish(ctx context.Context, promptId int, version string) error
+	PromptPublish(ctx context.Context, promptId int, version string, publishNote string) error
 	PromptSwitchVersion(ctx context.Context, promptId int, version string) error
 
 	CreateProject(ctx context.Context, req *api.ProjectCreateReq) (projectId int, err error)

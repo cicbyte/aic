@@ -110,9 +110,10 @@ type PromptVersionDeleteRes struct {
 }
 
 type PromptPublishReq struct {
-	g.Meta   `path:"/prompts/publish" method:"post" tags:"提示" summary:"发布版本"`
-	PromptId int    `json:"promptId" v:"required#提示ID不能为空"`
-	Version  string `json:"version" v:"required#版本号不能为空"`
+	g.Meta      `path:"/prompts/publish" method:"post" tags:"提示" summary:"发布版本"`
+	PromptId    int    `json:"promptId" v:"required#提示ID不能为空"`
+	Version     string `json:"version" v:"required#版本号不能为空"`
+	PublishNote string `json:"publishNote"`
 }
 
 type PromptPublishRes struct {

@@ -76,7 +76,7 @@ func (c *promptsController) PromptRollback(ctx context.Context, req *api.PromptR
 
 func (c *promptsController) PromptPublish(ctx context.Context, req *api.PromptPublishReq) (res *api.PromptPublishRes, err error) {
 	res = new(api.PromptPublishRes)
-	err = service.Prompts().PromptPublish(ctx, req.PromptId, req.Version)
+	err = service.Prompts().PromptPublish(ctx, req.PromptId, req.Version, req.PublishNote)
 	return
 }
 

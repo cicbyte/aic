@@ -25,6 +25,7 @@ type PromptVersionInfo struct {
 	Tags        string `orm:"tags" json:"tags"`
 	CategoryId  int    `orm:"category_id" json:"categoryId"`
 	ProjectId   int    `orm:"project_id" json:"projectId"`
+	PublishNote string `orm:"publish_note" json:"publishNote"`
 	CreatedAt   string `orm:"created_at" json:"createdAt"`
 }
 

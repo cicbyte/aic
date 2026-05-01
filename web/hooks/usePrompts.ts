@@ -90,9 +90,9 @@ export function usePrompts() {
     }
   };
 
-  const publishVersion = async (promptId: number, version: string) => {
+  const publishVersion = async (promptId: number, version: string, publishNote?: string) => {
     try {
-      await promptApi.publish(promptId, version);
+      await promptApi.publish(promptId, version, publishNote);
       showToast(`已发布 v${version}`, 'success');
     } catch (err) {
       console.error('Failed to publish:', err);

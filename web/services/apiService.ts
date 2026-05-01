@@ -98,8 +98,8 @@ export const promptApi = {
     request<{}>(`/prompts/version-delete?id=${versionId}`, { method: 'DELETE' }),
   rollback: (promptId: number, version: string) =>
     request<{}>('/prompts/rollback', { method: 'POST', body: JSON.stringify({ promptId, version }) }),
-  publish: (promptId: number, version: string) =>
-    request<{}>('/prompts/publish', { method: 'POST', body: JSON.stringify({ promptId, version }) }),
+  publish: (promptId: number, version: string, publishNote?: string) =>
+    request<{}>('/prompts/publish', { method: 'POST', body: JSON.stringify({ promptId, version, publishNote }) }),
   switchVersion: (promptId: number, version: string) =>
     request<{}>('/prompts/switch-version', { method: 'POST', body: JSON.stringify({ promptId, version }) }),
 };

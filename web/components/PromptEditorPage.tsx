@@ -104,6 +104,7 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
 
   // Publish dialog
   const [publishVersionInput, setPublishVersionInput] = useState('');
+  const [publishNoteInput, setPublishNoteInput] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
   const [showPublishForm, setShowPublishForm] = useState(false);
 
@@ -210,11 +211,14 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
     }
     setIsPublishing(true);
     try {
-      await promptApi.publish(promptId, ver);
+      await promptApi.publish(promptId, ver, publishNoteInput.trim() || undefined);
       showToast(`已发布 v${ver}`, 'success');
       setShowPublishForm(false);
+      setPublishNoteInput('');
       setPublishedVersion(ver);
       syncSavedSnapshot();
+      const data = await promptApi.versions(promptId);
+      setVersions(data.versions || []);
       onSaved();
     } catch (err) {
       console.error('Failed to publish:', err);
@@ -450,26 +454,38 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
                   </Button>
                 ) : (
                   <>
-                    <Input
-                      data-testid="publish-version-input"
-                      type="text"
-                      value={publishVersionInput}
-                      onChange={(e) => setPublishVersionInput(e.target.value)}
-                      placeholder="x.y.z"
-                      className="h-7 w-28 text-xs font-mono"
-                    />
-                    <Button
-                      data-testid="publish-version-btn"
-                      size="sm"
-                      onClick={handlePublish}
-                      disabled={isPublishing || !publishVersionInput.trim() || !/^\d+\.\d+\.\d+$/.test(publishVersionInput.trim())}
-                      className="bg-emerald-500 hover:bg-emerald-600 text-white h-7 text-xs"
-                    >
-                      {isPublishing ? <Loader2 size={10} className="animate-spin" /> : <Send size={10} />}
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setShowPublishForm(false)} className="h-7 w-7 p-0 text-muted-foreground">
-                      <X size={12} />
-                    </Button>
+                    <div className="flex flex-col gap-2 w-full">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          data-testid="publish-version-input"
+                          type="text"
+                          value={publishVersionInput}
+                          onChange={(e) => setPublishVersionInput(e.target.value)}
+                          placeholder="x.y.z"
+                          className="h-7 w-28 text-xs font-mono"
+                        />
+                        <Button
+                          data-testid="publish-version-btn"
+                          size="sm"
+                          onClick={handlePublish}
+                          disabled={isPublishing || !publishVersionInput.trim() || !/^\d+\.\d+\.\d+$/.test(publishVersionInput.trim())}
+                          className="bg-emerald-500 hover:bg-emerald-600 text-white h-7 text-xs"
+                        >
+                          {isPublishing ? <Loader2 size={10} className="animate-spin" /> : <Send size={10} />}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => { setShowPublishForm(false); setPublishNoteInput(''); }} className="h-7 w-7 p-0 text-muted-foreground">
+                          <X size={12} />
+                        </Button>
+                      </div>
+                      <textarea
+                        data-testid="publish-note-input"
+                        value={publishNoteInput}
+                        onChange={(e) => setPublishNoteInput(e.target.value)}
+                        placeholder="版本发布说明（可选）"
+                        rows={2}
+                        className="w-full text-xs rounded-md border border-input bg-background px-3 py-2 resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      />
+                    </div>
                   </>
                 )}
               </div>
@@ -594,10 +610,10 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
                         </div>
                         <div className="mt-1 flex items-center gap-2">
                           <span className="text-[10px] text-muted-foreground">{formatTime(v.createdAt)}</span>
-                          {v.description && (
+                          {v.publishNote && (
                             <>
                               <span className="text-border">·</span>
-                              <span className="text-[10px] text-muted-foreground truncate max-w-[240px]">{v.description}</span>
+                              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 truncate max-w-[240px]">{v.publishNote}</span>
                             </>
                           )}
                         </div>
