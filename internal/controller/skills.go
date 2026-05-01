@@ -119,3 +119,24 @@ func (c *skillsController) ImportZip(ctx context.Context, req *api.ImportZipReq)
 	res.Name = skillName
 	return
 }
+
+func (c *skillsController) GetGitHistory(ctx context.Context, req *api.GetGitHistoryReq) (res *api.GetGitHistoryRes, err error) {
+	res = new(api.GetGitHistoryRes)
+	result, err := service.Skills().GetGitHistory(ctx, req.Id, req.MaxCount)
+	res.GitHistoryResult = result
+	return
+}
+
+func (c *skillsController) GetGitFileContent(ctx context.Context, req *api.GetGitFileContentReq) (res *api.GetGitFileContentRes, err error) {
+	res = new(api.GetGitFileContentRes)
+	content, err := service.Skills().GetGitFileContent(ctx, req.Id, req.Commit, req.Path)
+	res.Content = content
+	return
+}
+
+func (c *skillsController) GetGitDiff(ctx context.Context, req *api.GetGitDiffReq) (res *api.GetGitDiffRes, err error) {
+	res = new(api.GetGitDiffRes)
+	diff, err := service.Skills().GetGitDiff(ctx, req.Id, req.From, req.To)
+	res.Diff = diff
+	return
+}

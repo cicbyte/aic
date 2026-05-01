@@ -28,6 +28,20 @@ type SkillsDetailInfo struct {
 	Tags    []string `json:"tags"`
 }
 
+// GitCommitInfo git 提交信息
+type GitCommitInfo struct {
+	Hash      string `json:"hash"`
+	Author    string `json:"author"`
+	Timestamp string `json:"timestamp"`
+	Message   string `json:"message"`
+}
+
+// GitHistoryResult git 历史查询结果
+type GitHistoryResult struct {
+	Commits   []GitCommitInfo `json:"commits"`
+	IsGitRepo bool            `json:"isGitRepo"`
+}
+
 // FileNode 文件节点（用于文件树）
 type FileNode struct {
 	Id       string     `json:"id"`

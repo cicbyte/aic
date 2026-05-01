@@ -81,4 +81,11 @@ export interface Project {
   updatedAt: string;
 }
 
+export interface GitCommit {
+  hash: string;
+  author: string;
+  timestamp: string;
+  message: string;
+}
+
 export type ViewMode = 'dashboard' | 'skills' | 'prompts' | 'projects' | 'categories' | 'settings';

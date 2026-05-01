@@ -17,7 +17,6 @@ import (
 	do "github.com/cicbyte/aic/internal/model/do"
 	service "github.com/cicbyte/aic/internal/service"
 	liberr "github.com/cicbyte/aic/library/liberr"
-	"github.com/google/uuid"
 
 	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/errors/gerror"
@@ -38,26 +37,17 @@ type sSkills struct{}
 // Create 创建技能
 func (s *sSkills) Create(ctx context.Context, req *api.CreateReq) (skillId int, err error) {
 	err = g.Try(ctx, func(ctx context.Context) {
-		// 检查名称是否已存在
-		count, err := dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Name, req.Name).Count()
-		fmt.Printf("[DEBUG] Create: checking name '%s', count=%d, err=%v\n", req.Name, count, err)
-		liberr.ErrIsNil(ctx, err, "查询技能失败")
-		if count > 0 {
-			fmt.Printf("[DEBUG] Create: name '%s' already exists\n", req.Name)
-			panic("技能名称已存在")
-		}
+		filePath, err := generateSlugPath(req.Name)
+		liberr.ErrIsNil(ctx, err, "生成路径失败")
 
-		// 生成唯一文件路径
-		filePath := generateUniquePath(req.Name)
-
-		// 创建目录
 		baseDir := "data/skills"
 		skillDir := filepath.Join(baseDir, filePath)
 		if !gfile.Exists(skillDir) {
 			gfile.Mkdir(skillDir)
 		}
 
-		// 插入技能记录
+		gitInit(skillDir)
+
 		result, err := dao.Skills.Ctx(ctx).Insert(do.Skills{
 			Name:        req.Name,
 			Description: req.Description,
@@ -73,7 +63,6 @@ func (s *sSkills) Create(ctx context.Context, req *api.CreateReq) (skillId int, 
 		liberr.ErrIsNil(ctx, err, "获取ID失败")
 		skillId = int(id)
 
-		// 插入标签
 		if len(req.Tags) > 0 {
 			for _, tagName := range req.Tags {
 				if tagName == "" {
@@ -93,26 +82,14 @@ func (s *sSkills) Create(ctx context.Context, req *api.CreateReq) (skillId int, 
 // Update 更新技能
 func (s *sSkills) Update(ctx context.Context, req *api.UpdateReq) error {
 	err := g.Try(ctx, func(ctx context.Context) {
-		// 检查技能是否存在
-		count, err := dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Id, req.Id).Count()
+		entity, err := dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Id, req.Id).One()
 		liberr.ErrIsNil(ctx, err, "查询技能失败")
-		if count == 0 {
+		if entity.IsEmpty() {
 			liberr.ErrIsNil(ctx, gerror.New("技能不存在"), "")
 			return
 		}
+		oldFilePath := entity[dao.Skills.Columns().FilePath].String()
 
-		// 检查名称是否与其他技能冲突
-		count, err = dao.Skills.Ctx(ctx).
-			Where(dao.Skills.Columns().Name, req.Name).
-			WhereNot(dao.Skills.Columns().Id, req.Id).
-			Count()
-		liberr.ErrIsNil(ctx, err, "查询技能失败")
-		if count > 0 {
-			liberr.ErrIsNil(ctx, gerror.New("技能名称已存在"), "")
-			return
-		}
-
-		// 更新技能信息
 		_, err = dao.Skills.Ctx(ctx).
 			Where(dao.Skills.Columns().Id, req.Id).
 			Update(do.Skills{
@@ -122,7 +99,24 @@ func (s *sSkills) Update(ctx context.Context, req *api.UpdateReq) error {
 			})
 		liberr.ErrIsNil(ctx, err, "更新技能失败")
 
-		// 更新标签：先删除旧标签，再插入新标签
+		newSlug := toSlug(req.Name)
+		if newSlug != oldFilePath {
+			newDir := filepath.Join("data/skills", newSlug)
+			if gfile.Exists(newDir) {
+				resolved, _ := generateSlugPath(req.Name)
+				newSlug = resolved
+				newDir = filepath.Join("data/skills", newSlug)
+			}
+			oldDir := filepath.Join("data/skills", oldFilePath)
+			if gfile.Exists(oldDir) {
+				if err := os.Rename(oldDir, newDir); err == nil {
+					dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Id, req.Id).
+						Update(do.Skills{FilePath: newSlug})
+					gitCommitAll(newDir, "Rename to: "+req.Name)
+				}
+			}
+		}
+
 		_, err = dao.SkillTags.Ctx(ctx).
 			Where(dao.SkillTags.Columns().SkillId, req.Id).
 			Delete()
@@ -326,13 +320,7 @@ func (s *sSkills) List(ctx context.Context, req *api.ListReq) (total interface{}
 
 // SaveFiles 保存技能文件到磁盘
 func (s *sSkills) SaveFiles(ctx context.Context, skillId int, files []*model.FileNode) error {
-	fmt.Printf("[DEBUG] SaveFiles called: skillId=%d, files count=%d\n", skillId, len(files))
-	for i, f := range files {
-		fmt.Printf("[DEBUG] SaveFiles file[%d]: name=%s, type=%s, path=%s, children=%d\n", i, f.Name, f.Type, f.Path, len(f.Children))
-	}
-
 	err := g.Try(ctx, func(ctx context.Context) {
-		// 获取技能路径
 		entity, err := dao.Skills.Ctx(ctx).
 			Where(dao.Skills.Columns().Id, skillId).
 			One()
@@ -345,16 +333,14 @@ func (s *sSkills) SaveFiles(ctx context.Context, skillId int, files []*model.Fil
 		filePath := entity[dao.Skills.Columns().FilePath].String()
 		skillDir := filepath.Join("data/skills", filePath)
 
-		// 写入文件
 		writeFilesToDisk(skillDir, files, "")
+		gitCommitAll(skillDir, "Save files")
 
-		// 计算总文件大小
 		var totalSize int64 = 0
 		for _, file := range files {
 			totalSize += calculateFileSize(file)
 		}
 
-		// 更新技能文件大小
 		_, err = dao.Skills.Ctx(ctx).
 			Where(dao.Skills.Columns().Id, skillId).
 			Update(do.Skills{
@@ -596,8 +582,63 @@ func (s *sSkills) GetFavorites(ctx context.Context, page, pageSize int) (total i
 
 // ============ 辅助函数 ============
 
-func generateUniquePath(skillName string) string {
-	return uuid.New().String()
+func toSlug(name string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(name) {
+		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' {
+			b.WriteRune(r)
+		} else if r == ' ' || r == '_' || r == '-' {
+			b.WriteRune('-')
+		}
+	}
+	s := strings.Trim(b.String(), "-")
+	s = collapseDashes(s)
+	if s == "" {
+		return "skill"
+	}
+	return s
+}
+
+func collapseDashes(s string) string {
+	var b strings.Builder
+	prevDash := false
+	for _, c := range s {
+		if c == '-' {
+			if !prevDash {
+				b.WriteRune(c)
+			}
+			prevDash = true
+		} else {
+			b.WriteRune(c)
+			prevDash = false
+		}
+	}
+	return b.String()
+}
+
+func generateSlugPath(name string) (string, error) {
+	slug := toSlug(name)
+	baseDir := "data/skills"
+	candidate := slug
+
+	for i := 0; i < 10; i++ {
+		dir := filepath.Join(baseDir, candidate)
+		if !gfile.Exists(dir) {
+			return candidate, nil
+		}
+		if i == 0 {
+			suffix := fmt.Sprintf("%06x", time.Now().UnixNano()%0xFFFFFF)
+			candidate = fmt.Sprintf("%s-%s", slug, suffix)
+		} else {
+			suffix := fmt.Sprintf("%06x", time.Now().UnixNano()%0xFFFFFF)
+			candidate = fmt.Sprintf("%s-%s-%d", slug, suffix, i)
+		}
+	}
+	return candidate, nil
+}
+
+func isUUIDPath(s string) bool {
+	return len(s) == 36 && strings.Count(s, "-") == 4
 }
 
 // 递归扫描目录并构建文件树
@@ -718,7 +759,6 @@ func generateId() string {
 // ImportZip 导入 ZIP 文件创建技能
 func (s *sSkills) ImportZip(ctx context.Context, req *api.ImportZipReq) (skillId int, skillName string, err error) {
 	err = g.Try(ctx, func(ctx context.Context) {
-		// 解析 ZIP 文件
 		files, name, err := parseZipFromPath(req.File)
 		liberr.ErrIsNil(ctx, err, "解析ZIP文件失败")
 
@@ -728,40 +768,18 @@ func (s *sSkills) ImportZip(ctx context.Context, req *api.ImportZipReq) (skillId
 		}
 		skillName = name
 
-		// 检查名称是否已存在
-		count, err := dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Name, skillName).Count()
+		// 检查是否已存在同名技能
+		var existingEntity gdb.Record
+		existingEntity, err = dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Name, skillName).One()
 		liberr.ErrIsNil(ctx, err, "查询技能失败")
-		if count > 0 && !req.Overwrite {
+
+		if !existingEntity.IsEmpty() && !req.Overwrite {
 			liberr.ErrIsNil(ctx, gerror.New("技能名称已存在"), "")
 			return
 		}
 
-		// 如果存在且覆盖，先删除旧技能
-		if count > 0 && req.Overwrite {
-			var oldEntity gdb.Record
-			oldEntity, err = dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Name, skillName).One()
-			liberr.ErrIsNil(ctx, err, "查询旧技能失败")
-			if !oldEntity.IsEmpty() {
-				oldId := int(oldEntity[dao.Skills.Columns().Id].Int())
-				// 删除旧技能文件
-				oldFilePath := oldEntity[dao.Skills.Columns().FilePath].String()
-				oldSkillDir := filepath.Join("data/skills", oldFilePath)
-				if gfile.Exists(oldSkillDir) {
-					os.RemoveAll(oldSkillDir)
-				}
-				// 删除数据库记录
-				_, err = dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Id, oldId).Delete()
-				liberr.ErrIsNil(ctx, err, "删除旧技能失败")
-				// 删除关联标签
-				_, err = dao.SkillTags.Ctx(ctx).Where(dao.SkillTags.Columns().SkillId, oldId).Delete()
-				liberr.ErrIsNil(ctx, err, "删除旧技能标签失败")
-			}
-		}
-
-		// 确定分类
 		categoryId := req.CategoryId
 		if categoryId == 0 {
-			// 获取第一个分类
 			var categories []gdb.Record
 			categories, err = dao.Categories.Ctx(ctx).All()
 			liberr.ErrIsNil(ctx, err, "查询分类失败")
@@ -772,26 +790,42 @@ func (s *sSkills) ImportZip(ctx context.Context, req *api.ImportZipReq) (skillId
 			categoryId = int(categories[0][dao.Categories.Columns().Id].Int())
 		}
 
-		// 生成唯一文件路径
-		filePath := generateUniquePath(skillName)
-
-		// 创建目录
-		baseDir := "data/skills"
-		skillDir := filepath.Join(baseDir, filePath)
-		if !gfile.Exists(skillDir) {
-			gfile.Mkdir(skillDir)
-		}
-
-		// 写入文件到磁盘
-		writeFilesToDisk(skillDir, files, "")
-
-		// 计算总文件大小
-		var totalSize int64 = 0
+		var totalSize int64
 		for _, file := range files {
 			totalSize += calculateFileSize(file)
 		}
 
-		// 插入技能记录
+		if !existingEntity.IsEmpty() && req.Overwrite {
+			// 覆盖：保留目录和 git 历史，只替换文件
+			oldId := int(existingEntity[dao.Skills.Columns().Id].Int())
+			oldFilePath := existingEntity[dao.Skills.Columns().FilePath].String()
+			skillDir := filepath.Join("data/skills", oldFilePath)
+
+			clearSkillFiles(skillDir)
+			writeFilesToDisk(skillDir, files, "")
+			gitCommitAll(skillDir, "Import from ZIP (overwrite): "+skillName)
+
+			_, err = dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Id, oldId).
+				Update(do.Skills{FileSize: totalSize})
+			liberr.ErrIsNil(ctx, err, "更新技能失败")
+
+			skillId = oldId
+			return
+		}
+
+		// 新建
+		filePath, err := generateSlugPath(skillName)
+		liberr.ErrIsNil(ctx, err, "生成路径失败")
+
+		skillDir := filepath.Join("data/skills", filePath)
+		if !gfile.Exists(skillDir) {
+			gfile.Mkdir(skillDir)
+		}
+
+		writeFilesToDisk(skillDir, files, "")
+		gitInit(skillDir)
+		gitCommitAll(skillDir, "Import from ZIP: "+skillName)
+
 		result, err := dao.Skills.Ctx(ctx).Insert(do.Skills{
 			Name:        skillName,
 			Description: req.Description,
@@ -939,4 +973,64 @@ func buildFileTreeFromMap(nodes map[string]*model.FileNode) []*model.FileNode {
 	}
 
 	return rootNodes
+}
+
+// GetGitHistory 获取技能 git 历史
+func (s *sSkills) GetGitHistory(ctx context.Context, skillId int, maxCount int) (*model.GitHistoryResult, error) {
+	if maxCount <= 0 {
+		maxCount = 50
+	}
+	var result *model.GitHistoryResult
+	err := g.Try(ctx, func(ctx context.Context) {
+		entity, err := dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Id, skillId).One()
+		liberr.ErrIsNil(ctx, err, "查询技能失败")
+		if entity.IsEmpty() {
+			liberr.ErrIsNil(ctx, gerror.New("技能不存在"), "")
+			return
+		}
+		filePath := entity[dao.Skills.Columns().FilePath].String()
+		skillDir := filepath.Join("data/skills", filePath)
+		if !isGitAvailable() {
+			result = &model.GitHistoryResult{IsGitRepo: false}
+			return
+		}
+		commits, err := gitLog(skillDir, maxCount)
+		liberr.ErrIsNil(ctx, err, "获取Git历史失败")
+		result = &model.GitHistoryResult{Commits: commits, IsGitRepo: true}
+	})
+	return result, err
+}
+
+// GetGitFileContent 获取技能指定版本的文件内容
+func (s *sSkills) GetGitFileContent(ctx context.Context, skillId int, commitHash string, filePath string) (content string, err error) {
+	err = g.Try(ctx, func(ctx context.Context) {
+		entity, e := dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Id, skillId).One()
+		liberr.ErrIsNil(ctx, e, "查询技能失败")
+		if entity.IsEmpty() {
+			liberr.ErrIsNil(ctx, gerror.New("技能不存在"), "")
+			return
+		}
+		fp := entity[dao.Skills.Columns().FilePath].String()
+		skillDir := filepath.Join("data/skills", fp)
+		content, e = gitShowFile(skillDir, commitHash, filePath)
+		liberr.ErrIsNil(ctx, e, "获取文件内容失败")
+	})
+	return
+}
+
+// GetGitDiff 获取技能两次提交之间的差异
+func (s *sSkills) GetGitDiff(ctx context.Context, skillId int, fromHash string, toHash string) (diff string, err error) {
+	err = g.Try(ctx, func(ctx context.Context) {
+		entity, e := dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Id, skillId).One()
+		liberr.ErrIsNil(ctx, e, "查询技能失败")
+		if entity.IsEmpty() {
+			liberr.ErrIsNil(ctx, gerror.New("技能不存在"), "")
+			return
+		}
+		fp := entity[dao.Skills.Columns().FilePath].String()
+		skillDir := filepath.Join("data/skills", fp)
+		diff, e = gitDiff(skillDir, fromHash, toHash)
+		liberr.ErrIsNil(ctx, e, "获取差异失败")
+	})
+	return
 }

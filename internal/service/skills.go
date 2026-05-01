@@ -31,6 +31,11 @@ type ISkills interface {
 	// 收藏
 	ToggleFavorite(ctx context.Context, skillId int) (isFavorite bool, starCount int, err error)
 	GetFavorites(ctx context.Context, page, pageSize int) (total interface{}, skills []*model.SkillsInfo, err error)
+
+	// Git 版本管理
+	GetGitHistory(ctx context.Context, skillId int, maxCount int) (*model.GitHistoryResult, error)
+	GetGitFileContent(ctx context.Context, skillId int, commitHash string, filePath string) (string, error)
+	GetGitDiff(ctx context.Context, skillId int, fromHash string, toHash string) (string, error)
 }
 
 var localSkills ISkills

@@ -123,3 +123,38 @@ type ImportZipRes struct {
 	SkillId int    `json:"skillId"`
 	Name    string `json:"name"`
 }
+
+type GetGitHistoryReq struct {
+	g.Meta   `path:"/skills/git-history" method:"get" tags:"技能" summary:"获取技能Git历史"`
+	Id       int `json:"id" v:"required#技能ID不能为空"`
+	MaxCount int `json:"maxCount"`
+}
+
+type GetGitHistoryRes struct {
+	g.Meta `mime:"application/json"`
+	*model.GitHistoryResult
+}
+
+type GetGitFileContentReq struct {
+	g.Meta  `path:"/skills/git-file" method:"get" tags:"技能" summary:"获取技能指定版本的文件内容"`
+	Id      int    `json:"id" v:"required#技能ID不能为空"`
+	Commit  string `json:"commit" v:"required#Commit哈希不能为空"`
+	Path    string `json:"path" v:"required#文件路径不能为空"`
+}
+
+type GetGitFileContentRes struct {
+	g.Meta  `mime:"application/json"`
+	Content string `json:"content"`
+}
+
+type GetGitDiffReq struct {
+	g.Meta `path:"/skills/git-diff" method:"get" tags:"技能" summary:"获取技能两次提交之间的差异"`
+	Id     int    `json:"id" v:"required#技能ID不能为空"`
+	From   string `json:"from" v:"required#起始Commit哈希不能为空"`
+	To     string `json:"to" v:"required#目标Commit哈希不能为空"`
+}
+
+type GetGitDiffRes struct {
+	g.Meta `mime:"application/json"`
+	Diff   string `json:"diff"`
+}

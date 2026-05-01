@@ -70,6 +70,15 @@ export const skillApi = {
   toggleFavorite: (id: number) =>
     request<{ isFavorite: boolean }>('/skills/toggle-favorite', { method: 'POST', body: JSON.stringify({ skillId: id }) }),
   favorites: () => request<{ skillsList: Skill[]; total: number }>('/skills/favorites'),
+  gitHistory: (skillId: number, maxCount?: number) => {
+    let url = `/skills/git-history?id=${skillId}`;
+    if (maxCount) url += `&maxCount=${maxCount}`;
+    return request<{ commits: import('../types').GitCommit[]; isGitRepo: boolean }>(url);
+  },
+  gitFileContent: (skillId: number, commit: string, path: string) =>
+    request<{ content: string }>(`/skills/git-file?id=${skillId}&commit=${commit}&path=${encodeURIComponent(path)}`),
+  gitDiff: (skillId: number, from: string, to: string) =>
+    request<{ diff: string }>(`/skills/git-diff?id=${skillId}&from=${from}&to=${to}`),
 };
 
 // ============ Prompt API ============
