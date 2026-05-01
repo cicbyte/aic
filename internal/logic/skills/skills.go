@@ -47,6 +47,8 @@ func (s *sSkills) Create(ctx context.Context, req *api.CreateReq) (skillId int, 
 		}
 
 		gitInit(skillDir)
+		generateSkillMd(skillDir, filePath, req.Name, req.Description)
+		gitCommitAll(skillDir, "Initial commit")
 
 		result, err := dao.Skills.Ctx(ctx).Insert(do.Skills{
 			Name:        req.Name,
@@ -582,6 +584,30 @@ func (s *sSkills) GetFavorites(ctx context.Context, page, pageSize int) (total i
 
 // ============ 辅助函数 ============
 
+func generateSkillMd(dirPath string, slug string, name string, description string) {
+	desc := strings.ReplaceAll(description, `"`, `\"`)
+	desc = strings.ReplaceAll(desc, "\n", " ")
+	skillMd := fmt.Sprintf(`---
+name: %s
+description: "%s"
+metadata:
+  display_name: "%s"
+  version: "1.0.0"
+---
+
+# %s
+
+## Instructions
+
+Describe what this skill does and how Claude should use it.
+
+## Examples
+
+Provide examples of using this skill.
+`, slug, desc, name, name)
+	_ = os.WriteFile(filepath.Join(dirPath, "SKILL.md"), []byte(skillMd), 0644)
+}
+
 func toSlug(name string) string {
 	var b strings.Builder
 	for _, r := range strings.ToLower(name) {
@@ -934,6 +960,8 @@ func extractSkillNameFromContent(content string) string {
 
 	lines := strings.Split(content, "\n")
 	inYaml := false
+	displayName := ""
+	slugName := ""
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "---" {
@@ -941,16 +969,20 @@ func extractSkillNameFromContent(content string) string {
 			continue
 		}
 		if inYaml {
+			if strings.HasPrefix(trimmed, "display_name:") || strings.HasPrefix(trimmed, "display_name :") {
+				displayName = strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(trimmed, "display_name:"), "display_name :"))
+				displayName = strings.Trim(displayName, "\"'")
+			}
 			if strings.HasPrefix(trimmed, "name:") || strings.HasPrefix(trimmed, "name :") {
-				name := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(trimmed, "name:"), "name :"))
-				name = strings.Trim(name, "\"'")
-				if name != "" {
-					return name
-				}
+				slugName = strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(trimmed, "name:"), "name :"))
+				slugName = strings.Trim(slugName, "\"'")
 			}
 		}
 	}
-	return ""
+	if displayName != "" {
+		return displayName
+	}
+	return slugName
 }
 
 // buildFileTreeFromMap 从 map 构建文件树
