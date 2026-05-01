@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, Save, Download, Trash2, Loader2, File, Folder, FolderOpen, ChevronRight, ChevronDown, Plus, Pencil, FilePlus, FolderPlus, Upload, Archive, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Save, Download, Trash2, Loader2, File, Folder, FolderOpen, ChevronRight, ChevronDown, Plus, Pencil, FilePlus, FolderPlus, Upload, Archive, AlertTriangle, History, Tag, RotateCcw, Eye, ChevronUp, X, Send } from 'lucide-react';
 import CodeMirror from '@uiw/react-codemirror';
 import { vscodeDark } from '@uiw/codemirror-theme-vscode';
 import { json } from '@codemirror/lang-json';
@@ -10,7 +10,10 @@ import { css } from '@codemirror/lang-css';
 import { skillApi } from '../services/apiService';
 import { useToast } from './Toast';
 import { useContextMenu } from './ContextMenu';
-import type { FileNode, SkillDetail } from '../types';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import type { FileNode, SkillDetail, GitCommit, SkillTagInfo } from '../types';
 
 interface SkillDetailPageProps {
   skillId: number;
@@ -269,6 +272,22 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
   const [content, setContent] = useState('');
   const saveDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Version management state
+  const [versionPanelOpen, setVersionPanelOpen] = useState(false);
+  const [tags, setTags] = useState<SkillTagInfo[]>([]);
+  const [commits, setCommits] = useState<GitCommit[]>([]);
+  const [loadingVersions, setLoadingVersions] = useState(false);
+  const [versionTab, setVersionTab] = useState<'tags' | 'commits'>('tags');
+  const [showPublishForm, setShowPublishForm] = useState(false);
+  const [publishVersionInput, setPublishVersionInput] = useState('');
+  const [publishNoteInput, setPublishNoteInput] = useState('');
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [isRollingBack, setIsRollingBack] = useState(false);
+  const [previewTag, setPreviewTag] = useState<SkillTagInfo | null>(null);
+  const [previewFiles, setPreviewFiles] = useState<FileNode[]>([]);
+  const [expandedDiff, setExpandedDiff] = useState<string | null>(null);
+  const [diffContent, setDiffContent] = useState<Record<string, string>>({});
+
   // Inline editing state
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState('');
@@ -332,6 +351,135 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
       }
     }
     return null;
+  };
+
+  // ---- Version management ----
+
+  const loadVersions = useCallback(async () => {
+    setLoadingVersions(true);
+    try {
+      const [tagsRes, historyRes] = await Promise.all([
+        skillApi.tagList(skillId),
+        skillApi.gitHistory(skillId, 50),
+      ]);
+      setTags(tagsRes.tags || []);
+      setCommits(historyRes.commits || []);
+    } catch (err) {
+      console.error('Failed to load versions:', err);
+    } finally {
+      setLoadingVersions(false);
+    }
+  }, [skillId]);
+
+  const openVersionPanel = async () => {
+    setVersionPanelOpen(true);
+    setPreviewTag(null);
+    setShowPublishForm(false);
+    await loadVersions();
+  };
+
+  const latestTag = tags.length > 0 ? tags[0] : null;
+
+  const getNextVersion = () => {
+    if (!latestTag) return '1.0.0';
+    const parts = latestTag.tag.replace(/^v/, '').split('.').map(Number);
+    if (parts.length === 3) return `${parts[0]}.${parts[1]}.${parts[2] + 1}`;
+    return '1.0.0';
+  };
+
+  const handlePublish = async () => {
+    const version = publishVersionInput.trim();
+    if (!version || !/^\d+\.\d+\.\d+$/.test(version)) {
+      showToast('版本号格式不正确，应为 x.y.z', 'warning');
+      return;
+    }
+    setIsPublishing(true);
+    try {
+      await skillApi.tagCreate(skillId, version, publishNoteInput.trim() || undefined);
+      showToast(`已发布 v${version}`, 'success');
+      setShowPublishForm(false);
+      setPublishVersionInput('');
+      setPublishNoteInput('');
+      await loadVersions();
+    } catch (err) {
+      showToast('发布失败', 'error');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  const handleDeleteTag = async (tag: string) => {
+    if (!confirm(`确定删除标签 ${tag} 吗？`)) return;
+    try {
+      await skillApi.tagDelete(skillId, tag);
+      showToast('标签已删除', 'success');
+      await loadVersions();
+    } catch (err) {
+      showToast('删除标签失败', 'error');
+    }
+  };
+
+  const handlePreviewTag = async (tag: SkillTagInfo) => {
+    try {
+      const filesRes = await skillApi.getFiles(skillId);
+      const currentFiles = filesRes.files || [];
+
+      const previewPromises = currentFiles.map(async (f) => {
+        if (f.type !== 'file') return f;
+        try {
+          const res = await skillApi.gitFileContent(skillId, tag.tag, f.path);
+          return { ...f, content: res.content };
+        } catch {
+          return f;
+        }
+      });
+      const newFiles = await Promise.all(previewPromises);
+      setPreviewTag(tag);
+      setPreviewFiles(newFiles);
+    } catch (err) {
+      showToast('预览失败', 'error');
+    }
+  };
+
+  const handleRollback = async (tag: string) => {
+    if (!confirm(`确定回滚到 ${tag} 吗？当前未保存的更改将丢失。`)) return;
+    setIsRollingBack(true);
+    try {
+      await skillApi.tagCheckout(skillId, tag);
+      showToast(`已回滚到 ${tag}`, 'success');
+      setVersionPanelOpen(false);
+      await loadDetail();
+    } catch (err) {
+      showToast('回滚失败', 'error');
+    } finally {
+      setIsRollingBack(false);
+    }
+  };
+
+  const handleToggleDiff = async (hash: string) => {
+    if (expandedDiff === hash) {
+      setExpandedDiff(null);
+      return;
+    }
+    if (diffContent[hash]) {
+      setExpandedDiff(hash);
+      return;
+    }
+    try {
+      const res = await skillApi.gitDiff(skillId, hash + '~1', hash);
+      setDiffContent(prev => ({ ...prev, [hash]: res.diff }));
+      setExpandedDiff(hash);
+    } catch {
+      showToast('获取差异失败', 'error');
+    }
+  };
+
+  const formatTimestamp = (ts: string) => {
+    const num = parseInt(ts, 10);
+    if (isNaN(num)) return ts;
+    return new Date(num * 1000).toLocaleString('zh-CN', {
+      month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+    });
   };
 
   // ---- Tree interactions ----
@@ -666,6 +814,17 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
             </span>
           )}
           <button
+            onClick={openVersionPanel}
+            className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+              latestTag
+                ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30'
+                : 'text-gray-400 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700'
+            }`}
+          >
+            <History size={12} />
+            {latestTag ? `v${latestTag.tag.replace(/^v/, '')}` : '未发布'}
+          </button>
+          <button
             onClick={handleSave}
             className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors"
           >
@@ -763,6 +922,213 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
           )}
         </main>
       </div>
+
+      {/* Version Management Sheet */}
+      <Sheet open={versionPanelOpen} onOpenChange={(open) => { if (!open) { setVersionPanelOpen(false); setPreviewTag(null); setShowPublishForm(false); } }}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>版本管理</SheetTitle>
+            <SheetDescription>发布版本、查看提交历史</SheetDescription>
+          </SheetHeader>
+
+          {/* Publish form */}
+          {!previewTag && (
+            <div className="px-6 py-3 border-b border-border bg-muted/30 shrink-0">
+              <div className="flex items-center gap-2">
+                {!showPublishForm ? (
+                  <Button size="sm" onClick={() => { setShowPublishForm(true); setPublishVersionInput(getNextVersion()); }}>
+                    <Plus size={12} className="mr-1" />发布新版本
+                  </Button>
+                ) : (
+                  <>
+                    <div className="flex flex-col gap-2 w-full">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="text"
+                          value={publishVersionInput}
+                          onChange={(e) => setPublishVersionInput(e.target.value)}
+                          placeholder="x.y.z"
+                          className="h-7 w-28 text-xs font-mono"
+                        />
+                        <Button
+                          size="sm"
+                          onClick={handlePublish}
+                          disabled={isPublishing || !publishVersionInput.trim() || !/^\d+\.\d+\.\d+$/.test(publishVersionInput.trim())}
+                          className="bg-emerald-500 hover:bg-emerald-600 text-white h-7 text-xs"
+                        >
+                          {isPublishing ? <Loader2 size={10} className="animate-spin" /> : <Send size={10} />}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => { setShowPublishForm(false); setPublishNoteInput(''); }} className="h-7 w-7 p-0 text-muted-foreground">
+                          <X size={12} />
+                        </Button>
+                      </div>
+                      <textarea
+                        value={publishNoteInput}
+                        onChange={(e) => setPublishNoteInput(e.target.value)}
+                        placeholder="版本发布说明（可选）"
+                        rows={2}
+                        className="w-full text-xs rounded-md border border-input bg-background px-3 py-2 resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="flex-1 overflow-y-auto min-h-0">
+            {previewTag ? (
+              /* Tag preview */
+              <div className="flex flex-col overflow-hidden">
+                <div className="flex items-center justify-between px-6 py-2.5 border-b border-border shrink-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold">v{previewTag.tag.replace(/^v/, '')}</span>
+                    <span className="text-[10px] text-muted-foreground">{previewTag.note || '无说明'}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleRollback(previewTag.tag)}
+                      disabled={isRollingBack}
+                      className="h-7 text-[10px] px-2"
+                    >
+                      {isRollingBack ? <Loader2 size={10} className="animate-spin mr-1" /> : <RotateCcw size={10} className="mr-1" />}
+                      回滚
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setPreviewTag(null)}
+                      className="h-7 w-7 p-0 text-muted-foreground"
+                    >
+                      <X size={14} />
+                    </Button>
+                  </div>
+                </div>
+                <div className="px-6 py-2 border-b border-border bg-muted/30 shrink-0">
+                  <span className="text-[10px] text-muted-foreground">{formatTimestamp(previewTag.createdAt)}</span>
+                </div>
+                <div className="px-6 py-3 space-y-1">
+                  <span className="text-xs font-medium text-muted-foreground">文件预览</span>
+                  {previewFiles.filter(f => f.type === 'file').map(f => (
+                    <div key={f.path} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted/50 text-xs">
+                      <File size={12} className="text-blue-400" />
+                      <span className="truncate flex-1">{f.name}</span>
+                    </div>
+                  ))}
+                  {previewFiles.filter(f => f.type === 'file').length === 0 && (
+                    <span className="text-xs text-muted-foreground px-2">无文件</span>
+                  )}
+                </div>
+              </div>
+            ) : loadingVersions ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 size={20} className="animate-spin text-primary" />
+              </div>
+            ) : (
+              <>
+                {/* Tab switcher */}
+                <div className="flex items-center gap-1 px-6 pt-3 pb-2 shrink-0">
+                  <button
+                    onClick={() => setVersionTab('tags')}
+                    className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
+                      versionTab === 'tags'
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-muted-foreground hover:bg-muted/50'
+                    }`}
+                  >
+                    <Tag size={12} />
+                    发布版本 {tags.length > 0 && `(${tags.length})`}
+                  </button>
+                  <button
+                    onClick={() => setVersionTab('commits')}
+                    className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
+                      versionTab === 'commits'
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-muted-foreground hover:bg-muted/50'
+                    }`}
+                  >
+                    <History size={12} />
+                    提交历史 {commits.length > 0 && `(${commits.length})`}
+                  </button>
+                </div>
+
+                {versionTab === 'tags' ? (
+                  tags.length > 0 ? (
+                    <div className="divide-y divide-border">
+                      {tags.map(t => (
+                        <div key={t.tag} className="px-6 py-3 hover:bg-muted/50 cursor-pointer transition-colors group" onClick={() => handlePreviewTag(t)}>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600">
+                                v{t.tag.replace(/^v/, '')}
+                              </span>
+                              <span className="text-xs truncate max-w-[160px]">{t.note || '无说明'}</span>
+                            </div>
+                            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                              <Button size="sm" variant="ghost" onClick={() => handlePreviewTag(t)} className="h-7 w-7 p-0 text-muted-foreground hover:text-primary" title="预览">
+                                <Eye size={12} />
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => handleRollback(t.tag)} disabled={isRollingBack} className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive" title="回滚">
+                                <RotateCcw size={12} />
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => handleDeleteTag(t.tag)} className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive" title="删除">
+                                <Trash2 size={12} />
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="mt-1">
+                            <span className="text-[10px] text-muted-foreground">{formatTimestamp(t.createdAt)}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                      <Tag size={24} className="opacity-20 mb-2" />
+                      <p className="text-xs">暂无发布版本</p>
+                    </div>
+                  )
+                ) : (
+                  commits.length > 0 ? (
+                    <div className="divide-y divide-border">
+                      {commits.map(c => (
+                        <div key={c.hash} className="px-6 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-mono text-muted-foreground">{c.hash.substring(0, 7)}</span>
+                            <span className="text-xs truncate flex-1">{c.message}</span>
+                            <button
+                              onClick={() => handleToggleDiff(c.hash)}
+                              className="p-1 text-muted-foreground hover:text-primary transition-colors shrink-0"
+                              title="查看差异"
+                            >
+                              {expandedDiff === c.hash ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                            </button>
+                          </div>
+                          <div className="mt-1">
+                            <span className="text-[10px] text-muted-foreground">{formatTimestamp(c.timestamp)}</span>
+                          </div>
+                          {expandedDiff === c.hash && diffContent[c.hash] && (
+                            <pre className="mt-2 px-3 py-2 bg-muted/50 rounded-lg text-[11px] font-mono text-muted-foreground overflow-x-auto whitespace-pre-wrap max-h-60 overflow-y-auto">
+                              {diffContent[c.hash]}
+                            </pre>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                      <History size={24} className="opacity-20 mb-2" />
+                      <p className="text-xs">暂无提交记录</p>
+                    </div>
+                  )
+                )}
+              </>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 };

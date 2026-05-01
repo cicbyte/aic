@@ -1,4 +1,4 @@
-import type { Category, Skill, SkillDetail, FileNode, Prompt, PromptVersion, Project } from '../types';
+import type { Category, Skill, SkillDetail, FileNode, Prompt, PromptVersion, Project, SkillTagInfo } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
@@ -79,6 +79,14 @@ export const skillApi = {
     request<{ content: string }>(`/skills/git-file?id=${skillId}&commit=${commit}&path=${encodeURIComponent(path)}`),
   gitDiff: (skillId: number, from: string, to: string) =>
     request<{ diff: string }>(`/skills/git-diff?id=${skillId}&from=${from}&to=${to}`),
+  tagCreate: (skillId: number, version: string, note?: string) =>
+    request<{}>('/skills/tag-create', { method: 'POST', body: JSON.stringify({ id: skillId, version, note }) }),
+  tagList: (skillId: number) =>
+    request<{ tags: SkillTagInfo[] }>(`/skills/tag-list?id=${skillId}`),
+  tagDelete: (skillId: number, tag: string) =>
+    request<{}>('/skills/tag-delete', { method: 'POST', body: JSON.stringify({ id: skillId, tag }) }),
+  tagCheckout: (skillId: number, tag: string) =>
+    request<{}>('/skills/tag-checkout', { method: 'POST', body: JSON.stringify({ id: skillId, tag }) }),
 };
 
 // ============ Prompt API ============

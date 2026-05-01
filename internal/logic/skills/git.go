@@ -164,3 +164,76 @@ func clearSkillFiles(dirPath string) error {
 	}
 	return nil
 }
+
+func gitCreateTag(dirPath string, tag string, message string) error {
+	if !isGitAvailable() {
+		return nil
+	}
+	cmd := exec.Command("git", "tag", "-a", tag, "-m", message)
+	cmd.Dir = dirPath
+	if output, err := cmd.CombinedOutput(); err != nil {
+		g.Log().Warningf(context.Background(), "git tag failed: %s", string(output))
+		return err
+	}
+	return nil
+}
+
+func gitListTags(dirPath string) ([]model.SkillTagInfo, error) {
+	if !isGitAvailable() {
+		return nil, nil
+	}
+	cmd := exec.Command("git", "tag", "-l", "--format=%(ref:short)|%(contents:subject)|%(creatordate:unix)")
+	cmd.Dir = dirPath
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	tags := make([]model.SkillTagInfo, 0, len(lines))
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "|", 3)
+		if len(parts) < 2 {
+			continue
+		}
+			note := parts[1]
+		createdAt := ""
+		if len(parts) >= 3 && parts[2] != "" {
+			createdAt = parts[2]
+		}
+		tags = append(tags, model.SkillTagInfo{
+			Tag:        parts[0],
+			Note:       note,
+			CreatedAt:  createdAt,
+		})
+	}
+	return tags, nil
+}
+
+func gitDeleteTag(dirPath string, tag string) error {
+	if !isGitAvailable() {
+		return nil
+	}
+	cmd := exec.Command("git", "tag", "-d", tag)
+	cmd.Dir = dirPath
+	if output, err := cmd.CombinedOutput(); err != nil {
+		g.Log().Warningf(context.Background(), "git tag -d failed: %s", string(output))
+		return err
+	}
+	return nil
+}
+
+func gitCheckoutFiles(dirPath string, ref string) error {
+	if !isGitAvailable() {
+		return nil
+	}
+	cmd := exec.Command("git", "checkout", ref, "--", ".")
+	cmd.Dir = dirPath
+	if output, err := cmd.CombinedOutput(); err != nil {
+		g.Log().Warningf(context.Background(), "git checkout failed: %s", string(output))
+		return err
+	}
+	return nil
+}

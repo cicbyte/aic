@@ -158,3 +158,44 @@ type GetGitDiffRes struct {
 	g.Meta `mime:"application/json"`
 	Diff   string `json:"diff"`
 }
+
+type TagCreateReq struct {
+	g.Meta  `path:"/skills/tag-create" method:"post" tags:"技能" summary:"创建技能版本标签"`
+	Id      int    `json:"id" v:"required#技能ID不能为空"`
+	Version string `json:"version" v:"required#版本号不能为空"`
+	Note    string `json:"note"`
+}
+
+type TagCreateRes struct {
+	g.Meta `mime:"application/json"`
+}
+
+type TagListReq struct {
+	g.Meta `path:"/skills/tag-list" method:"get" tags:"技能" summary:"获取技能版本标签列表"`
+	Id     int `json:"id" v:"required#技能ID不能为空"`
+}
+
+type TagListRes struct {
+	g.Meta `mime:"application/json"`
+	Tags   []model.SkillTagInfo `json:"tags"`
+}
+
+type TagDeleteReq struct {
+	g.Meta  `path:"/skills/tag-delete" method:"post" tags:"技能" summary:"删除技能版本标签"`
+	Id      int    `json:"id" v:"required#技能ID不能为空"`
+	Tag     string `json:"tag" v:"required#标签名不能为空"`
+}
+
+type TagDeleteRes struct {
+	g.Meta `mime:"application/json"`
+}
+
+type TagCheckoutReq struct {
+	g.Meta  `path:"/skills/tag-checkout" method:"post" tags:"技能" summary:"回滚技能到指定版本"`
+	Id      int    `json:"id" v:"required#技能ID不能为空"`
+	Tag     string `json:"tag" v:"required#标签名不能为空"`
+}
+
+type TagCheckoutRes struct {
+	g.Meta `mime:"application/json"`
+}

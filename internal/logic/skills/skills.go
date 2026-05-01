@@ -1034,3 +1034,73 @@ func (s *sSkills) GetGitDiff(ctx context.Context, skillId int, fromHash string, 
 	})
 	return
 }
+
+// CreateTag 创建版本标签
+func (s *sSkills) CreateTag(ctx context.Context, skillId int, version string, note string) error {
+	return g.Try(ctx, func(ctx context.Context) {
+		entity, e := dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Id, skillId).One()
+		liberr.ErrIsNil(ctx, e, "查询技能失败")
+		if entity.IsEmpty() {
+			liberr.ErrIsNil(ctx, gerror.New("技能不存在"), "")
+			return
+		}
+		fp := entity[dao.Skills.Columns().FilePath].String()
+		skillDir := filepath.Join("data/skills", fp)
+
+		e = gitCreateTag(skillDir, version, note)
+		liberr.ErrIsNil(ctx, e, "创建标签失败")
+	})
+}
+
+// ListTags 获取版本标签列表
+func (s *sSkills) ListTags(ctx context.Context, skillId int) (tags []model.SkillTagInfo, err error) {
+	err = g.Try(ctx, func(ctx context.Context) {
+		entity, e := dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Id, skillId).One()
+		liberr.ErrIsNil(ctx, e, "查询技能失败")
+		if entity.IsEmpty() {
+			liberr.ErrIsNil(ctx, gerror.New("技能不存在"), "")
+			return
+		}
+		fp := entity[dao.Skills.Columns().FilePath].String()
+		skillDir := filepath.Join("data/skills", fp)
+		tags, e = gitListTags(skillDir)
+		liberr.ErrIsNil(ctx, e, "获取标签列表失败")
+	})
+	return
+}
+
+// DeleteTag 删除版本标签
+func (s *sSkills) DeleteTag(ctx context.Context, skillId int, tag string) error {
+	return g.Try(ctx, func(ctx context.Context) {
+		entity, e := dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Id, skillId).One()
+		liberr.ErrIsNil(ctx, e, "查询技能失败")
+		if entity.IsEmpty() {
+			liberr.ErrIsNil(ctx, gerror.New("技能不存在"), "")
+			return
+		}
+		fp := entity[dao.Skills.Columns().FilePath].String()
+		skillDir := filepath.Join("data/skills", fp)
+
+		e = gitDeleteTag(skillDir, tag)
+		liberr.ErrIsNil(ctx, e, "删除标签失败")
+	})
+}
+
+// CheckoutTag 回滚技能到指定版本
+func (s *sSkills) CheckoutTag(ctx context.Context, skillId int, tag string) error {
+	return g.Try(ctx, func(ctx context.Context) {
+		entity, e := dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Id, skillId).One()
+		liberr.ErrIsNil(ctx, e, "查询技能失败")
+		if entity.IsEmpty() {
+			liberr.ErrIsNil(ctx, gerror.New("技能不存在"), "")
+			return
+		}
+		fp := entity[dao.Skills.Columns().FilePath].String()
+		skillDir := filepath.Join("data/skills", fp)
+
+		e = gitCheckoutFiles(skillDir, tag)
+		liberr.ErrIsNil(ctx, e, "回滚失败")
+
+		gitCommitAll(skillDir, fmt.Sprintf("Rollback to %s", tag))
+	})
+}

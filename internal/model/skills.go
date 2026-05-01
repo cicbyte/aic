@@ -42,6 +42,13 @@ type GitHistoryResult struct {
 	IsGitRepo bool            `json:"isGitRepo"`
 }
 
+// SkillTagInfo 技能版本标签信息
+type SkillTagInfo struct {
+	Tag       string `json:"tag"`
+	Note      string `json:"note"`
+	CreatedAt string `json:"createdAt"`
+}
+
 // FileNode 文件节点（用于文件树）
 type FileNode struct {
 	Id       string     `json:"id"`

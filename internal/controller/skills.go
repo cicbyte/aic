@@ -140,3 +140,28 @@ func (c *skillsController) GetGitDiff(ctx context.Context, req *api.GetGitDiffRe
 	res.Diff = diff
 	return
 }
+
+func (c *skillsController) CreateTag(ctx context.Context, req *api.TagCreateReq) (res *api.TagCreateRes, err error) {
+	res = new(api.TagCreateRes)
+	err = service.Skills().CreateTag(ctx, req.Id, req.Version, req.Note)
+	return
+}
+
+func (c *skillsController) ListTags(ctx context.Context, req *api.TagListReq) (res *api.TagListRes, err error) {
+	res = new(api.TagListRes)
+	tags, err := service.Skills().ListTags(ctx, req.Id)
+	res.Tags = tags
+	return
+}
+
+func (c *skillsController) DeleteTag(ctx context.Context, req *api.TagDeleteReq) (res *api.TagDeleteRes, err error) {
+	res = new(api.TagDeleteRes)
+	err = service.Skills().DeleteTag(ctx, req.Id, req.Tag)
+	return
+}
+
+func (c *skillsController) CheckoutTag(ctx context.Context, req *api.TagCheckoutReq) (res *api.TagCheckoutRes, err error) {
+	res = new(api.TagCheckoutRes)
+	err = service.Skills().CheckoutTag(ctx, req.Id, req.Tag)
+	return
+}

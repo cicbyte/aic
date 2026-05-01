@@ -88,4 +88,10 @@ export interface GitCommit {
   message: string;
 }
 
+export interface SkillTagInfo {
+  tag: string;
+  note: string;
+  createdAt: string;
+}
+
 export type ViewMode = 'dashboard' | 'skills' | 'prompts' | 'projects' | 'categories' | 'settings';
