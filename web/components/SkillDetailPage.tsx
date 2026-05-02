@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, Save, Download, Trash2, Loader2, File, Folder, FolderOpen, ChevronRight, ChevronDown, Plus, Pencil, FilePlus, FolderPlus, Upload, Archive, AlertTriangle, Tag, RotateCcw, Eye, X, Send } from 'lucide-react';
+import { ArrowLeft, Save, Download, Trash2, Loader2, File, Folder, FolderOpen, ChevronRight, ChevronDown, Plus, Pencil, FilePlus, FolderPlus, Upload, Archive, AlertTriangle, Tag, RotateCcw, Eye, X, Send, FileText, FileCode2, FileJson, FileType as FileTypeIcon, Image as ImageIcon, Settings } from 'lucide-react';
 import CodeMirror from '@uiw/react-codemirror';
 import { vscodeDark } from '@uiw/codemirror-theme-vscode';
 import { json } from '@codemirror/lang-json';
@@ -213,7 +213,7 @@ const FileTreeItem: React.FC<{
         {isFolder ? (
           isExpanded ? <FolderOpen size={14} className="text-amber-400" /> : <Folder size={14} className="text-amber-400" />
         ) : (
-          <File size={14} className="text-blue-400" />
+          <File size={14} className={getFileIconColor(node.name)} />
         )}
         {isEditing ? (
           <input
@@ -297,6 +297,42 @@ function buildFileTree(paths: string[]): FileNode[] {
   return root;
 }
 
+// ---- File icon mapping ----
+
+const FILE_ICON_MAP: Array<[string, React.ElementType, string]> = [
+  ['md', FileText, 'text-blue-500'],
+  ['txt', FileText, 'text-gray-400'],
+  ['py', FileCode2, 'text-green-500'],
+  ['js', FileCode2, 'text-yellow-500'],
+  ['jsx', FileCode2, 'text-yellow-500'],
+  ['ts', FileCode2, 'text-blue-500'],
+  ['tsx', FileCode2, 'text-blue-500'],
+  ['json', FileJson, 'text-yellow-600'],
+  ['html', FileCode2, 'text-orange-500'],
+  ['css', FileTypeIcon, 'text-purple-500'],
+  ['yaml', FileTypeIcon, 'text-red-400'],
+  ['yml', FileTypeIcon, 'text-red-400'],
+  ['go', FileCode2, 'text-cyan-500'],
+  ['rs', FileCode2, 'text-orange-600'],
+  ['java', FileCode2, 'text-red-500'],
+  ['xml', FileCode2, 'text-orange-500'],
+  ['sql', FileTypeIcon, 'text-sky-500'],
+  ['sh', FileTypeIcon, 'text-green-400'],
+  ['bat', FileTypeIcon, 'text-green-400'],
+  ['png', ImageIcon, 'text-pink-400'],
+  ['jpg', ImageIcon, 'text-pink-400'],
+  ['svg', ImageIcon, 'text-amber-500'],
+  ['gif', ImageIcon, 'text-pink-400'],
+  ['env', Settings, 'text-gray-400'],
+  ['lock', Settings, 'text-gray-500'],
+];
+
+const getFileIconColor = (name: string) => {
+  const ext = name.split('.').pop()?.toLowerCase() || '';
+  const entry = FILE_ICON_MAP.find(([e]) => e === ext);
+  return entry ? entry[2] : 'text-gray-400';
+};
+
 function PreviewFileNode({ node, depth, selectedPath, onSelect }: {
   node: FileNode;
   depth: number;
@@ -314,7 +350,7 @@ function PreviewFileNode({ node, depth, selectedPath, onSelect }: {
         onClick={() => isFile && onSelect(node)}
       >
         {isFile ? (
-          <File size={12} className={isSelected ? 'text-primary' : 'text-blue-400'} />
+          <File size={12} className={getFileIconColor(node.name)} />
         ) : (
           <Folder size={12} className="text-amber-400 shrink-0" />
         )}
@@ -334,6 +370,9 @@ export const SkillDetailPage = () => {
   const navigate = useNavigate();
   const skillId = Number(id);
   const { showToast } = useToast();
+
+
+// ---- FileTreeItem component ----
   const [skill, setSkill] = useState<SkillDetail | null>(null);
   const [files, setFiles] = useState<FileNode[]>([]);
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
@@ -1106,7 +1145,7 @@ export const SkillDetailPage = () => {
                 {previewFileContent !== null && (
                   <div className="border-t border-border flex flex-col" style={{ height: '50%' }}>
                     <div className="flex items-center gap-2 px-4 py-1.5 bg-muted/30 shrink-0">
-                      <File size={12} className="text-blue-400" />
+                      <File size={12} className={getFileIconColor(previewFilePath.split('/').pop() || '')} />
                       <span className="text-xs font-medium truncate">{previewFilePath}</span>
                     </div>
                     <div className="flex-1 overflow-auto min-h-0">
