@@ -283,7 +283,9 @@ export const SkillDetailPage = () => {
   const [isPublishing, setIsPublishing] = useState(false);
   const [isRollingBack, setIsRollingBack] = useState(false);
   const [previewTag, setPreviewTag] = useState<SkillTagInfo | null>(null);
-  const [previewFiles, setPreviewFiles] = useState<FileNode[]>([]);
+  const [previewFileList, setPreviewFileList] = useState<{ name: string; path: string }[]>([]);
+  const [previewFileContent, setPreviewFileContent] = useState<string | null>(null);
+  const [previewFilePath, setPreviewFilePath] = useState('');
   const [currentTag, setCurrentTag] = useState('');
 
   // Inline editing state
@@ -424,22 +426,15 @@ export const SkillDetailPage = () => {
   const handlePreviewTag = async (tag: SkillTagInfo) => {
     try {
       const filesRes = await skillApi.getFiles(skillId);
-      const currentFiles = filesRes.files || [];
-
-      const previewPromises = currentFiles.map(async (f) => {
-        if (f.type !== 'file') return f;
-        try {
-          const res = await skillApi.gitFileContent(skillId, tag.tag, f.path);
-          return { ...f, content: res.content };
-        } catch {
-          return f;
-        }
-      });
-      const newFiles = await Promise.all(previewPromises);
+      const fileList = (filesRes.files || [])
+        .filter(f => f.type === 'file')
+        .map(f => ({ name: f.name, path: f.path }));
       setPreviewTag(tag);
-      setPreviewFiles(newFiles);
+      setPreviewFileList(fileList);
+      setPreviewFileContent(null);
+      setPreviewFilePath('');
     } catch (err) {
-      showToast('预览失败', 'error');
+      showToast('获取文件列表失败', 'error');
     }
   };
 
@@ -452,6 +447,7 @@ export const SkillDetailPage = () => {
           await skillApi.tagCheckout(skillId, tag);
           showToast(`已回滚到 ${tag}`, 'success');
           setVersionPanelOpen(false);
+          exitPreview();
           await loadDetail();
         } catch (err) {
           showToast('回滚失败', 'error');
@@ -460,6 +456,25 @@ export const SkillDetailPage = () => {
         }
       },
     });
+  };
+
+  const exitPreview = () => {
+    setPreviewTag(null);
+    setPreviewFileList([]);
+    setPreviewFileContent(null);
+    setPreviewFilePath('');
+  };
+
+  const handlePreviewFile = async (path: string) => {
+    if (!previewTag) return;
+    setPreviewFileContent('加载中...');
+    setPreviewFilePath(path);
+    try {
+      const res = await skillApi.gitFileContent(skillId, previewTag.tag, path);
+      setPreviewFileContent(res.content);
+    } catch {
+      setPreviewFileContent('无法加载文件内容');
+    }
   };
 
   const formatTimestamp = (ts: string) => {
@@ -922,7 +937,7 @@ export const SkillDetailPage = () => {
       </div>
 
       {/* Version Management Sheet */}
-      <Sheet open={versionPanelOpen} onOpenChange={(open) => { if (!open) { setVersionPanelOpen(false); setPreviewTag(null); setShowPublishForm(false); } }}>
+      <Sheet open={versionPanelOpen} onOpenChange={(open) => { if (!open) { setVersionPanelOpen(false); exitPreview(); setShowPublishForm(false); } }}>
         <SheetContent>
           <SheetHeader>
             <SheetTitle>版本管理</SheetTitle>
@@ -976,8 +991,7 @@ export const SkillDetailPage = () => {
 
           <div className="flex-1 overflow-y-auto min-h-0">
             {previewTag ? (
-              /* Tag preview */
-              <div className="flex flex-col overflow-hidden">
+              <div className="flex flex-col">
                 <div className="flex items-center justify-between px-6 py-2.5 border-b border-border shrink-0">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold">v{previewTag.tag.replace(/^v/, '')}</span>
@@ -1007,16 +1021,41 @@ export const SkillDetailPage = () => {
                 <div className="px-6 py-2 border-b border-border bg-muted/30 shrink-0">
                   <span className="text-[10px] text-muted-foreground">{formatTimestamp(previewTag.createdAt)}</span>
                 </div>
-                <div className="px-6 py-3 space-y-1">
-                  <span className="text-xs font-medium text-muted-foreground">文件预览</span>
-                  {previewFiles.filter(f => f.type === 'file').map(f => (
-                    <div key={f.path} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-muted/50 text-xs">
-                      <File size={12} className="text-blue-400" />
-                      <span className="truncate flex-1">{f.name}</span>
-                    </div>
-                  ))}
-                  {previewFiles.filter(f => f.type === 'file').length === 0 && (
-                    <span className="text-xs text-muted-foreground px-2">无文件</span>
+                <div className="divide-y divide-border">
+                  {previewFileList.map(f => {
+                    const isExpanded = previewFilePath === f.path;
+                    return (
+                      <div key={f.path}>
+                        <div
+                          className={`flex items-center gap-2 px-6 py-2 text-xs cursor-pointer transition-colors ${isExpanded ? 'bg-muted/50' : 'hover:bg-muted/30'}`}
+                          onClick={() => isExpanded ? setPreviewFileContent(null) : handlePreviewFile(f.path)}
+                        >
+                          <ChevronRight size={12} className={`text-muted-foreground shrink-0 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                          <File size={12} className="text-blue-400 shrink-0" />
+                          <span className="truncate flex-1">{f.name}</span>
+                        </div>
+                        {isExpanded && previewFileContent !== null && (
+                          <div className="border-t border-border">
+                            <CodeMirror
+                              value={previewFileContent}
+                              theme={vscodeDark}
+                              extensions={[...getLanguageExtension(f.name)]}
+                              className="text-sm"
+                              editable={false}
+                              basicSetup={{
+                                lineNumbers: true,
+                                foldGutter: false,
+                                highlightActiveLine: false,
+                                bracketMatching: false,
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {previewFileList.length === 0 && (
+                    <div className="px-6 py-8 text-center text-xs text-muted-foreground">无文件</div>
                   )}
                 </div>
               </div>
@@ -1090,6 +1129,7 @@ export const SkillDetailPage = () => {
           </div>
         </div>
       )}
+
     </div>
   );
 };
