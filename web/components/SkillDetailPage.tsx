@@ -1,7 +1,23 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { ArrowLeft, Save, Download, Trash2, Loader2, File, Folder, FolderOpen, ChevronRight, ChevronDown, Plus, Pencil, FilePlus, FolderPlus, Upload, Archive, AlertTriangle, Tag, RotateCcw, Eye, X, Send, FileText, FileCode2, FileJson, FileType as FileTypeIcon, Image as ImageIcon, Settings } from 'lucide-react';
 import CodeMirror from '@uiw/react-codemirror';
 import { vscodeDark } from '@uiw/codemirror-theme-vscode';
+import remarkGfm from 'remark-gfm';
+const MarkdownPreview = lazy(() => import('@uiw/react-markdown-preview').then(m => {
+  const C = m.default;
+  return { default: function MarkdownPreviewWrapper(props: any) { return React.createElement(C, props); } };
+}));
+
+function parseFrontmatter(text: string): { meta: Record<string, string>; body: string } {
+  const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
+  if (!match) return { meta: {}, body: text };
+  const meta: Record<string, string> = {};
+  match[1].split(/\r?\n/).forEach(line => {
+    const idx = line.indexOf(':');
+    if (idx > 0) meta[line.slice(0, idx).trim()] = line.slice(idx + 1).trim();
+  });
+  return { meta, body: match[2] };
+}
 import { json } from '@codemirror/lang-json';
 import { javascript } from '@codemirror/lang-javascript';
 import { markdown } from '@codemirror/lang-markdown';
@@ -458,10 +474,23 @@ export const SkillDetailPage = () => {
   };
 
   const findFirstFile = (nodes: FileNode[]): FileNode | null => {
+    const skillMd = findFileByName(nodes, 'SKILL.md');
+    if (skillMd) return skillMd;
     for (const node of nodes) {
       if (node.type === 'file') return node;
       if (node.children) {
         const found = findFirstFile(node.children);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  const findFileByName = (nodes: FileNode[], name: string): FileNode | null => {
+    for (const node of nodes) {
+      if (node.type === 'file' && node.name === name) return node;
+      if (node.children) {
+        const found = findFileByName(node.children, name);
         if (found) return found;
       }
     }
@@ -612,6 +641,7 @@ export const SkillDetailPage = () => {
     if (node.type === 'file') {
       setSelectedFileId(node.id);
       setContent(node.content || '');
+      setMdPreview(false);
     }
   };
 
@@ -902,6 +932,8 @@ export const SkillDetailPage = () => {
   };
 
   const selectedFile = selectedFileId ? findNodeById(files, selectedFileId) : null;
+  const isMdFile = selectedFile?.name.split('.').pop()?.toLowerCase() === 'md';
+  const [mdPreview, setMdPreview] = useState(false);
 
   if (isLoading) {
     return (
@@ -1014,26 +1046,73 @@ export const SkillDetailPage = () => {
         <main className="flex-1 overflow-hidden bg-white dark:bg-slate-900">
           {selectedFile ? (
             <div className="h-full flex flex-col">
-              <div className="flex items-center px-4 py-1.5 border-b border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/50 shrink-0">
-                <File size={12} className="text-gray-400 dark:text-slate-500 mr-2" />
-                <span className="text-xs text-gray-500 dark:text-slate-400">{selectedFile.name}</span>
+              <div className="flex items-center justify-between px-4 py-1.5 border-b border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/50 shrink-0">
+                <div className="flex items-center gap-2">
+                  <File size={12} className="text-gray-400 dark:text-slate-500" />
+                  <span className="text-xs text-gray-500 dark:text-slate-400">{selectedFile.name}</span>
+                </div>
+                {isMdFile && (
+                  <div className="flex items-center bg-gray-200 dark:bg-slate-700 rounded-lg p-0.5">
+                    <button
+                      onClick={() => setMdPreview(false)}
+                      className={`px-2 py-0.5 text-[10px] rounded-md transition-colors ${!mdPreview ? 'bg-white dark:bg-slate-600 shadow-sm text-gray-700 dark:text-slate-200' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}
+                    >
+                      编辑
+                    </button>
+                    <button
+                      onClick={() => setMdPreview(true)}
+                      className={`px-2 py-0.5 text-[10px] rounded-md transition-colors ${mdPreview ? 'bg-white dark:bg-slate-600 shadow-sm text-gray-700 dark:text-slate-200' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}
+                    >
+                      预览
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="flex-1 overflow-hidden">
-                <CodeMirror
-                  value={content}
-                  onChange={handleContentChange}
-                  theme={vscodeDark}
-                  extensions={[...getLanguageExtension(selectedFile.name)]}
-                  className="h-full text-sm"
-                  basicSetup={{
-                    lineNumbers: true,
-                    foldGutter: true,
-                    highlightActiveLine: true,
-                    bracketMatching: true,
-                    closeBrackets: true,
-                    indentOnInput: true,
-                  }}
-                />
+                {isMdFile && mdPreview ? (() => {
+                  const fm = parseFrontmatter(content);
+                  const mk = Object.keys(fm.meta);
+                  return (
+                  <div className="h-full overflow-auto md-preview [&_.wmde-markdown]:!bg-transparent">
+                    <style>{`.md-preview .wmde-markdown h1,.md-preview .wmde-markdown h2{border-bottom:none!important;padding-bottom:0!important}.md-preview .wmde-markdown{padding:16px!important}`}</style>
+                    {mk.length > 0 && (
+                      <div className="mx-4 mt-3 mb-2 p-3 rounded-lg bg-white/60 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-700">
+                        <div className="grid gap-1.5 text-xs">
+                          {mk.map(key => (
+                            <div key={key} className="flex gap-2">
+                              <span className="shrink-0 font-medium text-gray-500 dark:text-slate-400 min-w-[60px]">{key}</span>
+                              <span className="text-gray-700 dark:text-slate-300 break-all">{fm.meta[key]}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <Suspense fallback={<div className="flex items-center justify-center h-full text-gray-400"><Loader2 className="animate-spin" /></div>}>
+                      <MarkdownPreview
+                        source={fm.body}
+                        rehypePlugins={[remarkGfm]}
+                        style={{ minHeight: '100%', background: 'transparent' }}
+                        theme={document.documentElement.classList.contains('dark') ? 'dark' : 'light'}
+                      />
+                    </Suspense>
+                  </div>);
+                })() : (
+                  <CodeMirror
+                    value={content}
+                    onChange={handleContentChange}
+                    theme={vscodeDark}
+                    extensions={[...getLanguageExtension(selectedFile.name)]}
+                    className="h-full text-sm"
+                    basicSetup={{
+                      lineNumbers: true,
+                      foldGutter: true,
+                      highlightActiveLine: true,
+                      bracketMatching: true,
+                      closeBrackets: true,
+                      indentOnInput: true,
+                    }}
+                  />
+                )}
               </div>
             </div>
           ) : (
