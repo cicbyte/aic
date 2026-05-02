@@ -286,8 +286,7 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
   const [isRollingBack, setIsRollingBack] = useState(false);
   const [previewTag, setPreviewTag] = useState<SkillTagInfo | null>(null);
   const [previewFiles, setPreviewFiles] = useState<FileNode[]>([]);
-  const [expandedDiff, setExpandedDiff] = useState<string | null>(null);
-  const [diffContent, setDiffContent] = useState<Record<string, string>>({});
+  const [currentTag, setCurrentTag] = useState('');
 
   // Inline editing state
   const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
@@ -361,6 +360,7 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
     try {
       const tagsRes = await skillApi.tagList(skillId);
       setTags(tagsRes.tags || []);
+      setCurrentTag(tagsRes.currentTag || '');
     } catch (err) {
       console.error('Failed to load versions:', err);
     } finally {
@@ -459,24 +459,6 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
         }
       },
     });
-  };
-
-  const handleToggleDiff = async (hash: string) => {
-    if (expandedDiff === hash) {
-      setExpandedDiff(null);
-      return;
-    }
-    if (diffContent[hash]) {
-      setExpandedDiff(hash);
-      return;
-    }
-    try {
-      const res = await skillApi.gitDiff(skillId, hash + '~1', hash);
-      setDiffContent(prev => ({ ...prev, [hash]: res.diff }));
-      setExpandedDiff(hash);
-    } catch {
-      showToast('获取差异失败', 'error');
-    }
   };
 
   const formatTimestamp = (ts: string) => {
@@ -1046,12 +1028,15 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
               tags.length > 0 ? (
                 <div className="divide-y divide-border">
                   {tags.map(t => (
-                    <div key={t.tag} className="px-6 py-3 hover:bg-muted/50 cursor-pointer transition-colors group" onClick={() => handlePreviewTag(t)}>
+                    <div key={t.tag} className={`px-6 py-3 hover:bg-muted/50 cursor-pointer transition-colors group ${currentTag === t.tag ? 'bg-primary/5' : ''}`} onClick={() => handlePreviewTag(t)}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600">
                             v{t.tag.replace(/^v/, '')}
                           </span>
+                          {currentTag === t.tag && (
+                            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-primary/10 text-primary">当前</span>
+                          )}
                           <span className="text-xs truncate max-w-[160px]">{t.note || '无说明'}</span>
                         </div>
                         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>

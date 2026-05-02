@@ -176,8 +176,9 @@ type TagListReq struct {
 }
 
 type TagListRes struct {
-	g.Meta `mime:"application/json"`
-	Tags   []model.SkillTagInfo `json:"tags"`
+	g.Meta      `mime:"application/json"`
+	Tags        []model.SkillTagInfo `json:"tags"`
+	CurrentTag  string               `json:"currentTag"`
 }
 
 type TagDeleteReq struct {

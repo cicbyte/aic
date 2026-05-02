@@ -37,7 +37,7 @@ type ISkills interface {
 	GetGitFileContent(ctx context.Context, skillId int, commitHash string, filePath string) (string, error)
 	GetGitDiff(ctx context.Context, skillId int, fromHash string, toHash string) (string, error)
 	CreateTag(ctx context.Context, skillId int, version string, note string) error
-	ListTags(ctx context.Context, skillId int) ([]model.SkillTagInfo, error)
+	ListTags(ctx context.Context, skillId int) ([]model.SkillTagInfo, string, error)
 	DeleteTag(ctx context.Context, skillId int, tag string) error
 	CheckoutTag(ctx context.Context, skillId int, tag string) error
 }

@@ -149,8 +149,9 @@ func (c *skillsController) CreateTag(ctx context.Context, req *api.TagCreateReq)
 
 func (c *skillsController) ListTags(ctx context.Context, req *api.TagListReq) (res *api.TagListRes, err error) {
 	res = new(api.TagListRes)
-	tags, err := service.Skills().ListTags(ctx, req.Id)
+	tags, currentTag, err := service.Skills().ListTags(ctx, req.Id)
 	res.Tags = tags
+	res.CurrentTag = currentTag
 	return
 }
 

@@ -82,7 +82,7 @@ export const skillApi = {
   tagCreate: (skillId: number, version: string, note?: string) =>
     request<{}>('/skills/tag-create', { method: 'POST', body: JSON.stringify({ id: skillId, version, note }) }),
   tagList: (skillId: number) =>
-    request<{ tags: SkillTagInfo[] }>(`/skills/tag-list?id=${skillId}`),
+    request<{ tags: SkillTagInfo[]; currentTag: string }>(`/skills/tag-list?id=${skillId}`),
   tagDelete: (skillId: number, tag: string) =>
     request<{}>('/skills/tag-delete', { method: 'POST', body: JSON.stringify({ id: skillId, tag }) }),
   tagCheckout: (skillId: number, tag: string) =>

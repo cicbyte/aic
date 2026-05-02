@@ -200,7 +200,7 @@ func gitListTags(dirPath string) ([]model.SkillTagInfo, error) {
 	if !isGitAvailable() {
 		return nil, nil
 	}
-	cmd := exec.Command("git", "for-each-ref", "--format=%(refname:short)|%(contents:subject)|%(creatordate:unix)", "refs/tags/")
+	cmd := exec.Command("git", "for-each-ref", "--format=%(refname:short)|%(contents:subject)|%(creatordate:unix)", "--sort=-creatordate", "refs/tags/")
 	cmd.Dir = dirPath
 	output, err := cmd.Output()
 	if err != nil {
@@ -229,6 +229,19 @@ func gitListTags(dirPath string) ([]model.SkillTagInfo, error) {
 		})
 	}
 	return tags, nil
+}
+
+func gitCurrentTag(dirPath string) string {
+	if !isGitAvailable() {
+		return ""
+	}
+	cmd := exec.Command("git", "describe", "--tags", "--exact-match", "--abbrev=0")
+	cmd.Dir = dirPath
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(output))
 }
 
 func gitDeleteTag(dirPath string, tag string) error {

@@ -1098,21 +1098,22 @@ func (s *sSkills) CreateTag(ctx context.Context, skillId int, version string, no
 }
 
 // ListTags 获取版本标签列表
-func (s *sSkills) ListTags(ctx context.Context, skillId int) ([]model.SkillTagInfo, error) {
+func (s *sSkills) ListTags(ctx context.Context, skillId int) ([]model.SkillTagInfo, string, error) {
 	entity, err := dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Id, skillId).One()
 	if err != nil {
-		return nil, gerror.New("查询技能失败")
+		return nil, "", gerror.New("查询技能失败")
 	}
 	if entity.IsEmpty() {
-		return nil, gerror.New("技能不存在")
+		return nil, "", gerror.New("技能不存在")
 	}
 	fp := entity[dao.Skills.Columns().FilePath].String()
 	skillDir := filepath.Join("data/skills", fp)
 	tags, err := gitListTags(skillDir)
 	if err != nil {
-		return []model.SkillTagInfo{}, nil
+		return []model.SkillTagInfo{}, "", nil
 	}
-	return tags, nil
+	currentTag := gitCurrentTag(skillDir)
+	return tags, currentTag, nil
 }
 
 // DeleteTag 删除版本标签
