@@ -74,7 +74,6 @@ const AppContent: React.FC = () => {
   const [createProjectModal, setCreateProjectModal] = useState(false);
 
   // Detail/Editor pages (full screen overlays)
-  const [skillDetailId, setSkillDetailId] = useState<number | null>(null);
   const [promptEditorId, setPromptEditorId] = useState<number | null>(null);
   const [promptNewProjectId, setPromptNewProjectId] = useState<number | null>(null);
   const [projectDetailId, setProjectDetailId] = useState<number | null>(null);
@@ -122,16 +121,6 @@ const AppContent: React.FC = () => {
   }, [location.pathname]);
 
   const renderPage = () => {
-    if (skillDetailId !== null) {
-      return (
-        <SkillDetailPage
-          skillId={skillDetailId}
-          onBack={() => { setSkillDetailId(null); skills.loadSkills(); }}
-          onUpdate={() => skills.loadSkills()}
-        />
-      );
-    }
-
     if (promptEditorId !== null || promptNewProjectId !== null) {
       const id = promptEditorId;
       return (
@@ -187,9 +176,12 @@ const AppContent: React.FC = () => {
             onCreateSkill={() => setCreateSkillModal(true)}
             onImportZip={(file) => skills.importZip(file)}
             onToggleFavorite={(id) => skills.toggleFavorite(id)}
-            onSkillClick={(id) => setSkillDetailId(id)}
+            onSkillClick={(id) => navigate(`/skills/${id}`)}
             onDeleteSkill={(id) => skills.deleteSkill(id)}
           />
+        } />
+        <Route path="/skills/:id" element={
+          <SkillDetailPage />
         } />
         <Route path="/prompts" element={
           <PromptsPage

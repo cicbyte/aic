@@ -13,13 +13,8 @@ import { useContextMenu } from './ContextMenu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { useParams, useNavigate } from 'react-router-dom';
 import type { FileNode, SkillDetail, SkillTagInfo } from '../types';
-
-interface SkillDetailPageProps {
-  skillId: number;
-  onBack: () => void;
-  onUpdate: () => void;
-}
 
 function getLanguageExtension(filename: string) {
   const ext = filename.split('.').pop()?.toLowerCase() || '';
@@ -261,7 +256,10 @@ const FileTreeItem: React.FC<{
 
 // ---- Main component ----
 
-export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBack, onUpdate }) => {
+export const SkillDetailPage = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const skillId = Number(id);
   const { showToast } = useToast();
   const [skill, setSkill] = useState<SkillDetail | null>(null);
   const [files, setFiles] = useState<FileNode[]>([]);
@@ -549,7 +547,7 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
         try {
           await skillApi.delete(skillId);
           showToast('删除成功', 'success');
-          onBack();
+          navigate('/skills');
         } catch (err) {
           showToast('删除失败', 'error');
         }
@@ -726,7 +724,6 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
       await skillApi.importZip(file, undefined, undefined, true);
       showToast('ZIP 导入成功', 'success');
       await loadDetail();
-      onUpdate();
     } catch (err) {
       showToast('ZIP 导入失败', 'error');
     }
@@ -796,7 +793,7 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
       {/* Top bar */}
       <header className="flex items-center h-12 px-4 border-b border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 gap-3">
         <button
-          onClick={onBack}
+          onClick={() => navigate('/skills')}
           className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 transition-colors"
         >
           <ArrowLeft size={16} />
