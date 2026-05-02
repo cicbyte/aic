@@ -41,8 +41,13 @@ func gitInit(dirPath string) error {
 		return nil
 	}
 
-	exec.Command("git", "config", "user.name", "aic").Dir = dirPath
-	exec.Command("git", "config", "user.email", "aic@local").Run()
+	cmd = exec.Command("git", "config", "user.name", "aic")
+	cmd.Dir = dirPath
+	cmd.Run()
+
+	cmd = exec.Command("git", "config", "user.email", "aic@local")
+	cmd.Dir = dirPath
+	cmd.Run()
 
 	return nil
 }
@@ -167,13 +172,19 @@ func clearSkillFiles(dirPath string) error {
 
 func gitCreateTag(dirPath string, tag string, message string) error {
 	if !isGitAvailable() {
-		return nil
+		return fmt.Errorf("git 不可用")
 	}
-	cmd := exec.Command("git", "tag", "-a", tag, "-m", message)
+	// 检查是否有 commit
+	cmd := exec.Command("git", "rev-parse", "HEAD")
+	cmd.Dir = dirPath
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("没有提交记录，请先保存文件")
+	}
+	cmd = exec.Command("git", "tag", "-a", tag, "-m", message)
 	cmd.Dir = dirPath
 	if output, err := cmd.CombinedOutput(); err != nil {
 		g.Log().Warningf(context.Background(), "git tag failed: %s", string(output))
-		return err
+		return fmt.Errorf("%s", strings.TrimSpace(string(output)))
 	}
 	return nil
 }

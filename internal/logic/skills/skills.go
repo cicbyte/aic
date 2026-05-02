@@ -1022,127 +1022,133 @@ func (s *sSkills) GetGitHistory(ctx context.Context, skillId int, maxCount int) 
 	if maxCount <= 0 {
 		maxCount = 50
 	}
-	var result *model.GitHistoryResult
-	err := g.Try(ctx, func(ctx context.Context) {
-		entity, err := dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Id, skillId).One()
-		liberr.ErrIsNil(ctx, err, "查询技能失败")
-		if entity.IsEmpty() {
-			liberr.ErrIsNil(ctx, gerror.New("技能不存在"), "")
-			return
-		}
-		filePath := entity[dao.Skills.Columns().FilePath].String()
-		skillDir := filepath.Join("data/skills", filePath)
-		if !isGitAvailable() {
-			result = &model.GitHistoryResult{IsGitRepo: false}
-			return
-		}
-		commits, err := gitLog(skillDir, maxCount)
-		liberr.ErrIsNil(ctx, err, "获取Git历史失败")
-		result = &model.GitHistoryResult{Commits: commits, IsGitRepo: true}
-	})
-	return result, err
+	entity, err := dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Id, skillId).One()
+	if err != nil {
+		return nil, gerror.New("查询技能失败")
+	}
+	if entity.IsEmpty() {
+		return nil, gerror.New("技能不存在")
+	}
+	filePath := entity[dao.Skills.Columns().FilePath].String()
+	skillDir := filepath.Join("data/skills", filePath)
+	if !isGitAvailable() {
+		return &model.GitHistoryResult{IsGitRepo: false}, nil
+	}
+	commits, err := gitLog(skillDir, maxCount)
+	if err != nil {
+		return &model.GitHistoryResult{IsGitRepo: false}, nil
+	}
+	return &model.GitHistoryResult{Commits: commits, IsGitRepo: true}, nil
 }
 
 // GetGitFileContent 获取技能指定版本的文件内容
 func (s *sSkills) GetGitFileContent(ctx context.Context, skillId int, commitHash string, filePath string) (content string, err error) {
-	err = g.Try(ctx, func(ctx context.Context) {
-		entity, e := dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Id, skillId).One()
-		liberr.ErrIsNil(ctx, e, "查询技能失败")
-		if entity.IsEmpty() {
-			liberr.ErrIsNil(ctx, gerror.New("技能不存在"), "")
-			return
-		}
-		fp := entity[dao.Skills.Columns().FilePath].String()
-		skillDir := filepath.Join("data/skills", fp)
-		content, e = gitShowFile(skillDir, commitHash, filePath)
-		liberr.ErrIsNil(ctx, e, "获取文件内容失败")
-	})
+	entity, e := dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Id, skillId).One()
+	if e != nil {
+		return "", gerror.New("查询技能失败")
+	}
+	if entity.IsEmpty() {
+		return "", gerror.New("技能不存在")
+	}
+	fp := entity[dao.Skills.Columns().FilePath].String()
+	skillDir := filepath.Join("data/skills", fp)
+	content, err = gitShowFile(skillDir, commitHash, filePath)
+	if err != nil {
+		return "", gerror.New("获取文件内容失败")
+	}
 	return
 }
 
 // GetGitDiff 获取技能两次提交之间的差异
 func (s *sSkills) GetGitDiff(ctx context.Context, skillId int, fromHash string, toHash string) (diff string, err error) {
-	err = g.Try(ctx, func(ctx context.Context) {
-		entity, e := dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Id, skillId).One()
-		liberr.ErrIsNil(ctx, e, "查询技能失败")
-		if entity.IsEmpty() {
-			liberr.ErrIsNil(ctx, gerror.New("技能不存在"), "")
-			return
-		}
-		fp := entity[dao.Skills.Columns().FilePath].String()
-		skillDir := filepath.Join("data/skills", fp)
-		diff, e = gitDiff(skillDir, fromHash, toHash)
-		liberr.ErrIsNil(ctx, e, "获取差异失败")
-	})
+	entity, e := dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Id, skillId).One()
+	if e != nil {
+		return "", gerror.New("查询技能失败")
+	}
+	if entity.IsEmpty() {
+		return "", gerror.New("技能不存在")
+	}
+	fp := entity[dao.Skills.Columns().FilePath].String()
+	skillDir := filepath.Join("data/skills", fp)
+	diff, err = gitDiff(skillDir, fromHash, toHash)
+	if err != nil {
+		return "", gerror.New("获取差异失败")
+	}
 	return
 }
 
 // CreateTag 创建版本标签
 func (s *sSkills) CreateTag(ctx context.Context, skillId int, version string, note string) error {
-	return g.Try(ctx, func(ctx context.Context) {
-		entity, e := dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Id, skillId).One()
-		liberr.ErrIsNil(ctx, e, "查询技能失败")
-		if entity.IsEmpty() {
-			liberr.ErrIsNil(ctx, gerror.New("技能不存在"), "")
-			return
-		}
-		fp := entity[dao.Skills.Columns().FilePath].String()
-		skillDir := filepath.Join("data/skills", fp)
+	entity, e := dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Id, skillId).One()
+	if e != nil {
+		return gerror.New("查询技能失败")
+	}
+	if entity.IsEmpty() {
+		return gerror.New("技能不存在")
+	}
+	fp := entity[dao.Skills.Columns().FilePath].String()
+	skillDir := filepath.Join("data/skills", fp)
 
-		e = gitCreateTag(skillDir, version, note)
-		liberr.ErrIsNil(ctx, e, "创建标签失败")
-	})
+	e = gitCreateTag(skillDir, version, note)
+	if e != nil {
+		return gerror.Newf("创建标签失败: %v", e)
+	}
+	return nil
 }
 
 // ListTags 获取版本标签列表
-func (s *sSkills) ListTags(ctx context.Context, skillId int) (tags []model.SkillTagInfo, err error) {
-	err = g.Try(ctx, func(ctx context.Context) {
-		entity, e := dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Id, skillId).One()
-		liberr.ErrIsNil(ctx, e, "查询技能失败")
-		if entity.IsEmpty() {
-			liberr.ErrIsNil(ctx, gerror.New("技能不存在"), "")
-			return
-		}
-		fp := entity[dao.Skills.Columns().FilePath].String()
-		skillDir := filepath.Join("data/skills", fp)
-		tags, e = gitListTags(skillDir)
-		liberr.ErrIsNil(ctx, e, "获取标签列表失败")
-	})
-	return
+func (s *sSkills) ListTags(ctx context.Context, skillId int) ([]model.SkillTagInfo, error) {
+	entity, err := dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Id, skillId).One()
+	if err != nil {
+		return nil, gerror.New("查询技能失败")
+	}
+	if entity.IsEmpty() {
+		return nil, gerror.New("技能不存在")
+	}
+	fp := entity[dao.Skills.Columns().FilePath].String()
+	skillDir := filepath.Join("data/skills", fp)
+	tags, err := gitListTags(skillDir)
+	if err != nil {
+		return []model.SkillTagInfo{}, nil
+	}
+	return tags, nil
 }
 
 // DeleteTag 删除版本标签
 func (s *sSkills) DeleteTag(ctx context.Context, skillId int, tag string) error {
-	return g.Try(ctx, func(ctx context.Context) {
-		entity, e := dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Id, skillId).One()
-		liberr.ErrIsNil(ctx, e, "查询技能失败")
-		if entity.IsEmpty() {
-			liberr.ErrIsNil(ctx, gerror.New("技能不存在"), "")
-			return
-		}
-		fp := entity[dao.Skills.Columns().FilePath].String()
-		skillDir := filepath.Join("data/skills", fp)
+	entity, err := dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Id, skillId).One()
+	if err != nil {
+		return gerror.New("查询技能失败")
+	}
+	if entity.IsEmpty() {
+		return gerror.New("技能不存在")
+	}
+	fp := entity[dao.Skills.Columns().FilePath].String()
+	skillDir := filepath.Join("data/skills", fp)
 
-		e = gitDeleteTag(skillDir, tag)
-		liberr.ErrIsNil(ctx, e, "删除标签失败")
-	})
+	err = gitDeleteTag(skillDir, tag)
+	if err != nil {
+		return gerror.Newf("删除标签失败: %v", err)
+	}
+	return nil
 }
 
 // CheckoutTag 回滚技能到指定版本
 func (s *sSkills) CheckoutTag(ctx context.Context, skillId int, tag string) error {
-	return g.Try(ctx, func(ctx context.Context) {
-		entity, e := dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Id, skillId).One()
-		liberr.ErrIsNil(ctx, e, "查询技能失败")
-		if entity.IsEmpty() {
-			liberr.ErrIsNil(ctx, gerror.New("技能不存在"), "")
-			return
-		}
-		fp := entity[dao.Skills.Columns().FilePath].String()
-		skillDir := filepath.Join("data/skills", fp)
+	entity, err := dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Id, skillId).One()
+	if err != nil {
+		return gerror.New("查询技能失败")
+	}
+	if entity.IsEmpty() {
+		return gerror.New("技能不存在")
+	}
+	fp := entity[dao.Skills.Columns().FilePath].String()
+	skillDir := filepath.Join("data/skills", fp)
 
-		e = gitCheckoutFiles(skillDir, tag)
-		liberr.ErrIsNil(ctx, e, "回滚失败")
-
-		gitCommitAll(skillDir, fmt.Sprintf("Rollback to %s", tag))
-	})
+	err = gitCheckoutFiles(skillDir, tag)
+	if err != nil {
+		return gerror.Newf("回滚失败: %v", err)
+	}
+	gitCommitAll(skillDir, fmt.Sprintf("Rollback to %s", tag))
+	return nil
 }

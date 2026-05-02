@@ -405,7 +405,7 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
       setPublishNoteInput('');
       await loadVersions();
     } catch (err) {
-      showToast('发布失败', 'error');
+      showToast(err instanceof Error ? err.message : '发布失败', 'error');
     } finally {
       setIsPublishing(false);
     }
