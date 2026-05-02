@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ArrowLeft, Save, Download, Trash2, Loader2, File, Folder, FolderOpen, ChevronRight, ChevronDown, Plus, Pencil, FilePlus, FolderPlus, Upload, Archive, AlertTriangle, History, Tag, RotateCcw, Eye, ChevronUp, X, Send } from 'lucide-react';
+import { ArrowLeft, Save, Download, Trash2, Loader2, File, Folder, FolderOpen, ChevronRight, ChevronDown, Plus, Pencil, FilePlus, FolderPlus, Upload, Archive, AlertTriangle, Tag, RotateCcw, Eye, X, Send } from 'lucide-react';
 import CodeMirror from '@uiw/react-codemirror';
 import { vscodeDark } from '@uiw/codemirror-theme-vscode';
 import { json } from '@codemirror/lang-json';
@@ -13,7 +13,7 @@ import { useContextMenu } from './ContextMenu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import type { FileNode, SkillDetail, GitCommit, SkillTagInfo } from '../types';
+import type { FileNode, SkillDetail, SkillTagInfo } from '../types';
 
 interface SkillDetailPageProps {
   skillId: number;
@@ -278,9 +278,7 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
   // Version management state
   const [versionPanelOpen, setVersionPanelOpen] = useState(false);
   const [tags, setTags] = useState<SkillTagInfo[]>([]);
-  const [commits, setCommits] = useState<GitCommit[]>([]);
   const [loadingVersions, setLoadingVersions] = useState(false);
-  const [versionTab, setVersionTab] = useState<'tags' | 'commits'>('tags');
   const [showPublishForm, setShowPublishForm] = useState(false);
   const [publishVersionInput, setPublishVersionInput] = useState('');
   const [publishNoteInput, setPublishNoteInput] = useState('');
@@ -361,12 +359,8 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
   const loadVersions = useCallback(async () => {
     setLoadingVersions(true);
     try {
-      const [tagsRes, historyRes] = await Promise.all([
-        skillApi.tagList(skillId),
-        skillApi.gitHistory(skillId, 50),
-      ]);
+      const tagsRes = await skillApi.tagList(skillId);
       setTags(tagsRes.tags || []);
-      setCommits(historyRes.commits || []);
     } catch (err) {
       console.error('Failed to load versions:', err);
     } finally {
@@ -381,7 +375,7 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
     await loadVersions();
   };
 
-  const latestTag = tags.length > 0 ? tags[0] : null;
+  const latestTag = tags.length > 0 ? tags[tags.length - 1] : null;
 
   const getNextVersion = () => {
     if (!latestTag) return '1.0.0';
@@ -843,7 +837,7 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
                 : 'text-gray-400 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700'
             }`}
           >
-            <History size={12} />
+            <Tag size={12} />
             {latestTag ? `v${latestTag.tag.replace(/^v/, '')}` : '未发布'}
           </button>
           <button
@@ -1049,104 +1043,41 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
                 <Loader2 size={20} className="animate-spin text-primary" />
               </div>
             ) : (
-              <>
-                {/* Tab switcher */}
-                <div className="flex items-center gap-1 px-6 pt-3 pb-2 shrink-0">
-                  <button
-                    onClick={() => setVersionTab('tags')}
-                    className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
-                      versionTab === 'tags'
-                        ? 'bg-primary/10 text-primary'
-                        : 'text-muted-foreground hover:bg-muted/50'
-                    }`}
-                  >
-                    <Tag size={12} />
-                    发布版本 {tags.length > 0 && `(${tags.length})`}
-                  </button>
-                  <button
-                    onClick={() => setVersionTab('commits')}
-                    className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
-                      versionTab === 'commits'
-                        ? 'bg-primary/10 text-primary'
-                        : 'text-muted-foreground hover:bg-muted/50'
-                    }`}
-                  >
-                    <History size={12} />
-                    提交历史 {commits.length > 0 && `(${commits.length})`}
-                  </button>
+              tags.length > 0 ? (
+                <div className="divide-y divide-border">
+                  {tags.map(t => (
+                    <div key={t.tag} className="px-6 py-3 hover:bg-muted/50 cursor-pointer transition-colors group" onClick={() => handlePreviewTag(t)}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600">
+                            v{t.tag.replace(/^v/, '')}
+                          </span>
+                          <span className="text-xs truncate max-w-[160px]">{t.note || '无说明'}</span>
+                        </div>
+                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                          <Button size="sm" variant="ghost" onClick={() => handlePreviewTag(t)} className="h-7 w-7 p-0 text-muted-foreground hover:text-primary" title="预览">
+                            <Eye size={12} />
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => handleRollback(t.tag)} disabled={isRollingBack} className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive" title="回滚">
+                            <RotateCcw size={12} />
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => handleDeleteTag(t.tag)} className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive" title="删除">
+                            <Trash2 size={12} />
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="mt-1">
+                        <span className="text-[10px] text-muted-foreground">{formatTimestamp(t.createdAt)}</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-
-                {versionTab === 'tags' ? (
-                  tags.length > 0 ? (
-                    <div className="divide-y divide-border">
-                      {tags.map(t => (
-                        <div key={t.tag} className="px-6 py-3 hover:bg-muted/50 cursor-pointer transition-colors group" onClick={() => handlePreviewTag(t)}>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600">
-                                v{t.tag.replace(/^v/, '')}
-                              </span>
-                              <span className="text-xs truncate max-w-[160px]">{t.note || '无说明'}</span>
-                            </div>
-                            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                              <Button size="sm" variant="ghost" onClick={() => handlePreviewTag(t)} className="h-7 w-7 p-0 text-muted-foreground hover:text-primary" title="预览">
-                                <Eye size={12} />
-                              </Button>
-                              <Button size="sm" variant="ghost" onClick={() => handleRollback(t.tag)} disabled={isRollingBack} className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive" title="回滚">
-                                <RotateCcw size={12} />
-                              </Button>
-                              <Button size="sm" variant="ghost" onClick={() => handleDeleteTag(t.tag)} className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive" title="删除">
-                                <Trash2 size={12} />
-                              </Button>
-                            </div>
-                          </div>
-                          <div className="mt-1">
-                            <span className="text-[10px] text-muted-foreground">{formatTimestamp(t.createdAt)}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-                      <Tag size={24} className="opacity-20 mb-2" />
-                      <p className="text-xs">暂无发布版本</p>
-                    </div>
-                  )
-                ) : (
-                  commits.length > 0 ? (
-                    <div className="divide-y divide-border">
-                      {commits.map(c => (
-                        <div key={c.hash} className="px-6 py-3">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-mono text-muted-foreground">{c.hash.substring(0, 7)}</span>
-                            <span className="text-xs truncate flex-1">{c.message}</span>
-                            <button
-                              onClick={() => handleToggleDiff(c.hash)}
-                              className="p-1 text-muted-foreground hover:text-primary transition-colors shrink-0"
-                              title="查看差异"
-                            >
-                              {expandedDiff === c.hash ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                            </button>
-                          </div>
-                          <div className="mt-1">
-                            <span className="text-[10px] text-muted-foreground">{formatTimestamp(c.timestamp)}</span>
-                          </div>
-                          {expandedDiff === c.hash && diffContent[c.hash] && (
-                            <pre className="mt-2 px-3 py-2 bg-muted/50 rounded-lg text-[11px] font-mono text-muted-foreground overflow-x-auto whitespace-pre-wrap max-h-60 overflow-y-auto">
-                              {diffContent[c.hash]}
-                            </pre>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-                      <History size={24} className="opacity-20 mb-2" />
-                      <p className="text-xs">暂无提交记录</p>
-                    </div>
-                  )
-                )}
-              </>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                  <Tag size={24} className="opacity-20 mb-2" />
+                  <p className="text-xs">暂无发布版本</p>
+                </div>
+              )
             )}
           </div>
         </SheetContent>
