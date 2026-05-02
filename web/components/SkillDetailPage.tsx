@@ -375,7 +375,7 @@ export const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ skillId, onBac
     await loadVersions();
   };
 
-  const latestTag = tags.length > 0 ? tags[tags.length - 1] : null;
+  const latestTag = tags.length > 0 ? tags[0] : null;
 
   const getNextVersion = () => {
     if (!latestTag) return '1.0.0';
