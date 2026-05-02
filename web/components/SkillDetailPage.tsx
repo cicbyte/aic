@@ -253,55 +253,31 @@ const FileTreeItem: React.FC<{
   );
 };
 
-function PreviewFileNode({ node, depth, previewFilePath, onToggle, onCollapse, previewFileContent }: {
+function PreviewFileNode({ node, depth, selectedPath, onSelect }: {
   node: FileNode;
   depth: number;
-  previewFilePath: string;
-  onToggle: (path: string) => void;
-  onCollapse: () => void;
-  previewFileContent: string | null;
+  selectedPath: string;
+  onSelect: (node: FileNode) => void;
 }) {
   const isFile = node.type === 'file';
-  const isExpanded = previewFilePath === node.path;
+  const isSelected = selectedPath === node.path;
 
   return (
     <div>
       <div
-        className={`flex items-center gap-1.5 px-6 py-1.5 text-xs transition-colors ${isFile ? 'cursor-pointer hover:bg-muted/30' : 'text-muted-foreground'} ${isExpanded ? 'bg-muted/50' : ''}`}
+        className={`flex items-center gap-1.5 px-6 py-1.5 text-xs transition-colors ${isFile ? 'cursor-pointer hover:bg-muted/30' : 'text-muted-foreground'} ${isSelected ? 'bg-primary/10 text-primary' : ''}`}
         style={{ paddingLeft: `${depth * 16 + 24}px` }}
-        onClick={() => isFile && (isExpanded ? onCollapse() : onToggle(node.path))}
+        onClick={() => isFile && onSelect(node)}
       >
         {isFile ? (
-          <ChevronRight size={12} className={`shrink-0 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-        ) : (
-          <span className="w-3 shrink-0" />
-        )}
-        {isFile ? (
-          <File size={12} className="text-blue-400 shrink-0" />
+          <File size={12} className={isSelected ? 'text-primary' : 'text-blue-400'} />
         ) : (
           <Folder size={12} className="text-amber-400 shrink-0" />
         )}
         <span className="truncate">{node.name}</span>
       </div>
-      {isFile && isExpanded && previewFileContent !== null && (
-        <div className="border-t border-border">
-          <CodeMirror
-            value={previewFileContent}
-            theme={vscodeDark}
-            extensions={[...getLanguageExtension(node.name)]}
-            className="text-sm"
-            editable={false}
-            basicSetup={{
-              lineNumbers: true,
-              foldGutter: false,
-              highlightActiveLine: false,
-              bracketMatching: false,
-            }}
-          />
-        </div>
-      )}
       {!isFile && node.children?.map(child => (
-        <PreviewFileNode key={child.id} node={child} depth={depth + 1} previewFilePath={previewFilePath} onToggle={onToggle} onCollapse={onCollapse} previewFileContent={previewFileContent} />
+        <PreviewFileNode key={child.id} node={child} depth={depth + 1} selectedPath={selectedPath} onSelect={onSelect} />
       ))}
     </div>
   );
@@ -1039,9 +1015,9 @@ export const SkillDetailPage = () => {
             </div>
           )}
 
-          <div className="flex-1 overflow-y-auto min-h-0">
+          <div className="flex-1 flex flex-col min-h-0">
             {previewTag ? (
-              <div className="flex flex-col">
+              <div className="flex flex-col h-full">
                 <div className="flex items-center justify-between px-6 py-2.5 border-b border-border shrink-0">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold">v{previewTag.tag.replace(/^v/, '')}</span>
@@ -1071,14 +1047,39 @@ export const SkillDetailPage = () => {
                 <div className="px-6 py-2 border-b border-border bg-muted/30 shrink-0">
                   <span className="text-[10px] text-muted-foreground">{formatTimestamp(previewTag.createdAt)}</span>
                 </div>
-                <div>
+                {/* File list */}
+                <div className="flex-1 overflow-y-auto min-h-0">
                   {previewFileList.map(node => (
-                    <PreviewFileNode key={node.id} node={node} depth={0} previewFilePath={previewFilePath} onToggle={handlePreviewFile} onCollapse={() => setPreviewFileContent(null)} previewFileContent={previewFileContent} />
+                    <PreviewFileNode key={node.id} node={node} depth={0} selectedPath={previewFilePath} onSelect={(n) => handlePreviewFile(n.path)} />
                   ))}
                   {previewFileList.length === 0 && (
                     <div className="px-6 py-8 text-center text-xs text-muted-foreground">无文件</div>
                   )}
                 </div>
+                {/* Content area */}
+                {previewFileContent !== null && (
+                  <div className="border-t border-border flex flex-col" style={{ height: '50%' }}>
+                    <div className="flex items-center gap-2 px-4 py-1.5 bg-muted/30 shrink-0">
+                      <File size={12} className="text-blue-400" />
+                      <span className="text-xs font-medium truncate">{previewFilePath}</span>
+                    </div>
+                    <div className="flex-1 overflow-auto min-h-0">
+                      <CodeMirror
+                        value={previewFileContent}
+                        theme={vscodeDark}
+                        extensions={[...getLanguageExtension(previewFilePath)]}
+                        className="h-full text-sm"
+                        editable={false}
+                        basicSetup={{
+                          lineNumbers: true,
+                          foldGutter: false,
+                          highlightActiveLine: false,
+                          bracketMatching: false,
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             ) : loadingVersions ? (
               <div className="flex items-center justify-center py-16">

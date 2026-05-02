@@ -1,6 +1,7 @@
 package skills
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -134,10 +135,15 @@ func gitShowFile(dirPath string, commitHash string, relativeFilePath string) (st
 		return "", fmt.Errorf("git not available")
 	}
 
-	cmd := exec.Command("git", "show", commitHash+":"+relativeFilePath)
+	ref := commitHash + ":" + relativeFilePath
+	g.Log().Debugf(context.Background(), "gitShowFile: dir=%s, ref=%s", dirPath, ref)
+	var stderr bytes.Buffer
+	cmd := exec.Command("git", "show", ref)
 	cmd.Dir = dirPath
+	cmd.Stderr = &stderr
 	output, err := cmd.Output()
 	if err != nil {
+		g.Log().Warningf(context.Background(), "git show failed: dir=%s, ref=%s, err=%v, stderr=%s", dirPath, ref, err, stderr.String())
 		return "", err
 	}
 	return string(output), nil

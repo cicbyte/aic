@@ -696,6 +696,7 @@ func scanDirectory(dirPath string, relativePath string) ([]*model.FileNode, erro
 		name := entry.Name()
 		fullPath := filepath.Join(dirPath, name)
 		relPath := filepath.Join(relativePath, name)
+			relPath = filepath.ToSlash(relPath)
 
 		if entry.IsDir() {
 			// 跳过隐藏目录
