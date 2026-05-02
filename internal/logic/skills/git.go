@@ -104,6 +104,7 @@ func gitLog(dirPath string, maxCount int) ([]model.GitCommitInfo, error) {
 	cmd.Dir = dirPath
 	output, err := cmd.Output()
 	if err != nil {
+		g.Log().Warningf(context.Background(), "git list tags failed for %s: %v", dirPath, err)
 		return nil, err
 	}
 
@@ -180,6 +181,12 @@ func gitCreateTag(dirPath string, tag string, message string) error {
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("没有提交记录，请先保存文件")
 	}
+	// 检查 tag 是否已存在
+	cmd = exec.Command("git", "rev-parse", tag)
+	cmd.Dir = dirPath
+	if cmd.Run() == nil {
+		return fmt.Errorf("标签 %s 已存在", tag)
+	}
 	cmd = exec.Command("git", "tag", "-a", tag, "-m", message)
 	cmd.Dir = dirPath
 	if output, err := cmd.CombinedOutput(); err != nil {
@@ -193,10 +200,11 @@ func gitListTags(dirPath string) ([]model.SkillTagInfo, error) {
 	if !isGitAvailable() {
 		return nil, nil
 	}
-	cmd := exec.Command("git", "tag", "-l", "--format=%(ref:short)|%(contents:subject)|%(creatordate:unix)")
+	cmd := exec.Command("git", "for-each-ref", "--format=%(refname:short)|%(contents:subject)|%(creatordate:unix)", "refs/tags/")
 	cmd.Dir = dirPath
 	output, err := cmd.Output()
 	if err != nil {
+		g.Log().Warningf(context.Background(), "git list tags failed for %s: %v", dirPath, err)
 		return nil, err
 	}
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")

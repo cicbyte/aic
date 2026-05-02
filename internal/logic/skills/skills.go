@@ -337,7 +337,6 @@ func (s *sSkills) SaveFiles(ctx context.Context, skillId int, files []*model.Fil
 		skillDir := filepath.Join("data/skills", filePath)
 
 		writeFilesToDisk(skillDir, files, "")
-		gitCommitAll(skillDir, "Save files")
 
 		var totalSize int64 = 0
 		for _, file := range files {
@@ -1088,6 +1087,8 @@ func (s *sSkills) CreateTag(ctx context.Context, skillId int, version string, no
 	}
 	fp := entity[dao.Skills.Columns().FilePath].String()
 	skillDir := filepath.Join("data/skills", fp)
+
+	gitCommitAll(skillDir, fmt.Sprintf("Release %s", version))
 
 	e = gitCreateTag(skillDir, version, note)
 	if e != nil {
