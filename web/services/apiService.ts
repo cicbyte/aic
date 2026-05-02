@@ -77,6 +77,8 @@ export const skillApi = {
   },
   gitFileContent: (skillId: number, commit: string, path: string) =>
     request<{ content: string }>(`/skills/git-file?id=${skillId}&commit=${commit}&path=${encodeURIComponent(path)}`),
+  gitTree: (skillId: number, ref: string) =>
+    request<{ files: string[] }>(`/skills/git-tree?id=${skillId}&ref=${ref}`),
   gitDiff: (skillId: number, from: string, to: string) =>
     request<{ diff: string }>(`/skills/git-diff?id=${skillId}&from=${from}&to=${to}`),
   tagCreate: (skillId: number, version: string, note?: string) =>

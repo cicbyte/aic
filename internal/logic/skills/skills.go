@@ -1054,9 +1054,26 @@ func (s *sSkills) GetGitFileContent(ctx context.Context, skillId int, commitHash
 	skillDir := filepath.Join("data/skills", fp)
 	content, err = gitShowFile(skillDir, commitHash, filePath)
 	if err != nil {
+		if strings.Contains(err.Error(), "not in") {
+			return "", gerror.Newf("文件 %s 在此版本中不存在", filePath)
+		}
 		return "", gerror.New("获取文件内容失败")
 	}
 	return
+}
+
+// GetGitTree 获取技能指定版本的文件列表
+func (s *sSkills) GetGitTree(ctx context.Context, skillId int, ref string) ([]string, error) {
+	entity, err := dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Id, skillId).One()
+	if err != nil {
+		return nil, gerror.New("查询技能失败")
+	}
+	if entity.IsEmpty() {
+		return nil, gerror.New("技能不存在")
+	}
+	fp := entity[dao.Skills.Columns().FilePath].String()
+	skillDir := filepath.Join("data/skills", fp)
+	return gitListFiles(skillDir, ref)
 }
 
 // GetGitDiff 获取技能两次提交之间的差异

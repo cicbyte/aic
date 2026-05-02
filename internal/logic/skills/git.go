@@ -149,6 +149,27 @@ func gitShowFile(dirPath string, commitHash string, relativeFilePath string) (st
 	return string(output), nil
 }
 
+func gitListFiles(dirPath string, ref string) ([]string, error) {
+	if !isGitAvailable() {
+		return nil, fmt.Errorf("git not available")
+	}
+	cmd := exec.Command("git", "ls-tree", "-r", "--name-only", ref)
+	cmd.Dir = dirPath
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	files := make([]string, 0, len(lines))
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		files = append(files, line)
+	}
+	return files, nil
+}
+
 func gitDiff(dirPath string, fromHash string, toHash string) (string, error) {
 	if !isGitAvailable() {
 		return "", fmt.Errorf("git not available")

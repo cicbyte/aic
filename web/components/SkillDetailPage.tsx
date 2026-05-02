@@ -253,6 +253,50 @@ const FileTreeItem: React.FC<{
   );
 };
 
+function buildFileTree(paths: string[]): FileNode[] {
+  const root: FileNode[] = [];
+  const folderMap = new Map<string, FileNode>();
+
+  const getOrCreateFolder = (folderPath: string): FileNode => {
+    if (folderMap.has(folderPath)) return folderMap.get(folderPath)!;
+    const parts = folderPath.split('/');
+    const name = parts[parts.length - 1];
+    const node: FileNode = {
+      id: folderPath,
+      name,
+      path: folderPath,
+      type: 'folder',
+      children: [],
+    };
+    folderMap.set(folderPath, node);
+    if (parts.length > 1) {
+      const parentPath = parts.slice(0, -1).join('/');
+      const parent = getOrCreateFolder(parentPath);
+      parent.children = parent.children || [];
+      parent.children.push(node);
+    } else {
+      root.push(node);
+    }
+    return node;
+  };
+
+  for (const p of paths) {
+    const parts = p.split('/');
+    const name = parts[parts.length - 1];
+    const node: FileNode = { id: p, name, path: p, type: 'file' };
+    if (parts.length > 1) {
+      const folderPath = parts.slice(0, -1).join('/');
+      const parent = getOrCreateFolder(folderPath);
+      parent.children = parent.children || [];
+      parent.children.push(node);
+    } else {
+      root.push(node);
+    }
+  }
+
+  return root;
+}
+
 function PreviewFileNode({ node, depth, selectedPath, onSelect }: {
   node: FileNode;
   depth: number;
@@ -454,13 +498,15 @@ export const SkillDetailPage = () => {
 
   const handlePreviewTag = async (tag: SkillTagInfo) => {
     try {
-      const filesRes = await skillApi.getFiles(skillId);
+      const res = await skillApi.gitTree(skillId, tag.tag);
+      const filePaths = res.files || [];
+      const tree = buildFileTree(filePaths);
       setPreviewTag(tag);
-      setPreviewFileList(filesRes.files || []);
+      setPreviewFileList(tree);
       setPreviewFileContent(null);
       setPreviewFilePath('');
     } catch (err) {
-      showToast('获取文件列表失败', 'error');
+      showToast('获取版本文件列表失败', 'error');
     }
   };
 

@@ -147,6 +147,17 @@ type GetGitFileContentRes struct {
 	Content string `json:"content"`
 }
 
+type GetGitTreeReq struct {
+	g.Meta `path:"/skills/git-tree" method:"get" tags:"技能" summary:"获取技能指定版本的文件树"`
+	Id     int    `json:"id" v:"required#技能ID不能为空"`
+	Ref    string `json:"ref" v:"required#版本引用不能为空"`
+}
+
+type GetGitTreeRes struct {
+	g.Meta `mime:"application/json"`
+	Files  []string `json:"files"`
+}
+
 type GetGitDiffReq struct {
 	g.Meta `path:"/skills/git-diff" method:"get" tags:"技能" summary:"获取技能两次提交之间的差异"`
 	Id     int    `json:"id" v:"required#技能ID不能为空"`

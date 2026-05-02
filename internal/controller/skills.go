@@ -134,6 +134,13 @@ func (c *skillsController) GetGitFileContent(ctx context.Context, req *api.GetGi
 	return
 }
 
+func (c *skillsController) GetGitTree(ctx context.Context, req *api.GetGitTreeReq) (res *api.GetGitTreeRes, err error) {
+	res = new(api.GetGitTreeRes)
+	files, err := service.Skills().GetGitTree(ctx, req.Id, req.Ref)
+	res.Files = files
+	return
+}
+
 func (c *skillsController) GetGitDiff(ctx context.Context, req *api.GetGitDiffReq) (res *api.GetGitDiffRes, err error) {
 	res = new(api.GetGitDiffRes)
 	diff, err := service.Skills().GetGitDiff(ctx, req.Id, req.From, req.To)

@@ -35,6 +35,7 @@ type ISkills interface {
 	// Git 版本管理
 	GetGitHistory(ctx context.Context, skillId int, maxCount int) (*model.GitHistoryResult, error)
 	GetGitFileContent(ctx context.Context, skillId int, commitHash string, filePath string) (string, error)
+	GetGitTree(ctx context.Context, skillId int, ref string) ([]string, error)
 	GetGitDiff(ctx context.Context, skillId int, fromHash string, toHash string) (string, error)
 	CreateTag(ctx context.Context, skillId int, version string, note string) error
 	ListTags(ctx context.Context, skillId int) ([]model.SkillTagInfo, string, error)
