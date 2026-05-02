@@ -195,11 +195,10 @@ const FileTreeItem: React.FC<{
   };
 
   return (
-    <div>
+    <div data-node-id={node.id}>
       <button
         onClick={handleClick}
-        onContextMenu={(e) => onContextMenu(e, node)}
-        className={`w-full flex items-center gap-1.5 px-2 py-1 text-xs rounded-lg transition-colors ${
+        className={`w-full flex items-center gap-1.5 px-2 py-1.5 text-xs rounded-lg transition-colors ${
           isSelected
             ? 'bg-primary/10 text-primary font-medium'
             : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'
@@ -254,6 +253,60 @@ const FileTreeItem: React.FC<{
   );
 };
 
+function PreviewFileNode({ node, depth, previewFilePath, onToggle, onCollapse, previewFileContent }: {
+  node: FileNode;
+  depth: number;
+  previewFilePath: string;
+  onToggle: (path: string) => void;
+  onCollapse: () => void;
+  previewFileContent: string | null;
+}) {
+  const isFile = node.type === 'file';
+  const isExpanded = previewFilePath === node.path;
+
+  return (
+    <div>
+      <div
+        className={`flex items-center gap-1.5 px-6 py-1.5 text-xs transition-colors ${isFile ? 'cursor-pointer hover:bg-muted/30' : 'text-muted-foreground'} ${isExpanded ? 'bg-muted/50' : ''}`}
+        style={{ paddingLeft: `${depth * 16 + 24}px` }}
+        onClick={() => isFile && (isExpanded ? onCollapse() : onToggle(node.path))}
+      >
+        {isFile ? (
+          <ChevronRight size={12} className={`shrink-0 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+        ) : (
+          <span className="w-3 shrink-0" />
+        )}
+        {isFile ? (
+          <File size={12} className="text-blue-400 shrink-0" />
+        ) : (
+          <Folder size={12} className="text-amber-400 shrink-0" />
+        )}
+        <span className="truncate">{node.name}</span>
+      </div>
+      {isFile && isExpanded && previewFileContent !== null && (
+        <div className="border-t border-border">
+          <CodeMirror
+            value={previewFileContent}
+            theme={vscodeDark}
+            extensions={[...getLanguageExtension(node.name)]}
+            className="text-sm"
+            editable={false}
+            basicSetup={{
+              lineNumbers: true,
+              foldGutter: false,
+              highlightActiveLine: false,
+              bracketMatching: false,
+            }}
+          />
+        </div>
+      )}
+      {!isFile && node.children?.map(child => (
+        <PreviewFileNode key={child.id} node={child} depth={depth + 1} previewFilePath={previewFilePath} onToggle={onToggle} onCollapse={onCollapse} previewFileContent={previewFileContent} />
+      ))}
+    </div>
+  );
+}
+
 // ---- Main component ----
 
 export const SkillDetailPage = () => {
@@ -283,7 +336,7 @@ export const SkillDetailPage = () => {
   const [isPublishing, setIsPublishing] = useState(false);
   const [isRollingBack, setIsRollingBack] = useState(false);
   const [previewTag, setPreviewTag] = useState<SkillTagInfo | null>(null);
-  const [previewFileList, setPreviewFileList] = useState<{ name: string; path: string }[]>([]);
+  const [previewFileList, setPreviewFileList] = useState<FileNode[]>([]);
   const [previewFileContent, setPreviewFileContent] = useState<string | null>(null);
   const [previewFilePath, setPreviewFilePath] = useState('');
   const [currentTag, setCurrentTag] = useState('');
@@ -426,11 +479,8 @@ export const SkillDetailPage = () => {
   const handlePreviewTag = async (tag: SkillTagInfo) => {
     try {
       const filesRes = await skillApi.getFiles(skillId);
-      const fileList = (filesRes.files || [])
-        .filter(f => f.type === 'file')
-        .map(f => ({ name: f.name, path: f.path }));
       setPreviewTag(tag);
-      setPreviewFileList(fileList);
+      setPreviewFileList(filesRes.files || []);
       setPreviewFileContent(null);
       setPreviewFilePath('');
     } catch (err) {
@@ -864,7 +914,7 @@ export const SkillDetailPage = () => {
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
         {/* File tree sidebar */}
-        <aside className="w-56 border-r border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-y-auto shrink-0">
+        <aside className="w-56 border-r border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-y-auto shrink-0" onContextMenu={(e) => { e.preventDefault(); const target = (e.target as HTMLElement).closest('[data-node-id]'); if (target) { const id = target.getAttribute('data-node-id'); const node = findNodeById(files, id!); if (node) handleNodeContextMenu(e, node); } else { handleRootContextMenu(e); } }}>
           <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 dark:border-slate-800">
             <span className="text-[10px] font-medium text-gray-400 dark:text-slate-500 uppercase tracking-wider">文件</span>
             <button
@@ -874,7 +924,7 @@ export const SkillDetailPage = () => {
               <Plus size={14} />
             </button>
           </div>
-          <div className="p-2" onContextMenu={handleRootContextMenu}>
+          <div className="p-2">
             {files.length > 0 ? (
               files.map(node => (
                 <FileTreeItem
@@ -1021,39 +1071,10 @@ export const SkillDetailPage = () => {
                 <div className="px-6 py-2 border-b border-border bg-muted/30 shrink-0">
                   <span className="text-[10px] text-muted-foreground">{formatTimestamp(previewTag.createdAt)}</span>
                 </div>
-                <div className="divide-y divide-border">
-                  {previewFileList.map(f => {
-                    const isExpanded = previewFilePath === f.path;
-                    return (
-                      <div key={f.path}>
-                        <div
-                          className={`flex items-center gap-2 px-6 py-2 text-xs cursor-pointer transition-colors ${isExpanded ? 'bg-muted/50' : 'hover:bg-muted/30'}`}
-                          onClick={() => isExpanded ? setPreviewFileContent(null) : handlePreviewFile(f.path)}
-                        >
-                          <ChevronRight size={12} className={`text-muted-foreground shrink-0 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                          <File size={12} className="text-blue-400 shrink-0" />
-                          <span className="truncate flex-1">{f.name}</span>
-                        </div>
-                        {isExpanded && previewFileContent !== null && (
-                          <div className="border-t border-border">
-                            <CodeMirror
-                              value={previewFileContent}
-                              theme={vscodeDark}
-                              extensions={[...getLanguageExtension(f.name)]}
-                              className="text-sm"
-                              editable={false}
-                              basicSetup={{
-                                lineNumbers: true,
-                                foldGutter: false,
-                                highlightActiveLine: false,
-                                bracketMatching: false,
-                              }}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                <div>
+                  {previewFileList.map(node => (
+                    <PreviewFileNode key={node.id} node={node} depth={0} previewFilePath={previewFilePath} onToggle={handlePreviewFile} onCollapse={() => setPreviewFileContent(null)} previewFileContent={previewFileContent} />
+                  ))}
                   {previewFileList.length === 0 && (
                     <div className="px-6 py-8 text-center text-xs text-muted-foreground">无文件</div>
                   )}
