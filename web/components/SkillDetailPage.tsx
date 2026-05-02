@@ -315,11 +315,14 @@ export const SkillDetailPage = () => {
   const loadDetail = async () => {
     setIsLoading(true);
     try {
-      const [detail, filesRes] = await Promise.all([
+      const [detail, filesRes, tagsRes] = await Promise.all([
         skillApi.detail(skillId),
         skillApi.getFiles(skillId),
+        skillApi.tagList(skillId),
       ]);
       setSkill(detail);
+      setTags(tagsRes.tags || []);
+      setCurrentTag(tagsRes.currentTag || '');
       const sortedFiles = sortNodes(filesRes.files || []);
       setFiles(sortedFiles);
       setEditingNodeId(null);
