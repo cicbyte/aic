@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sun, Moon, Zap, Info, Palette, Shield, LogOut, Key, Eye } from 'lucide-react';
+import { Sun, Moon, Zap, Info, Palette, Shield, LogOut, Key, Eye, RefreshCw, Edit2, Check, Github, ExternalLink } from 'lucide-react';
 
 interface SettingsPageProps {
   isDarkMode: boolean;
@@ -17,6 +17,8 @@ type TabId = typeof tabs[number]['id'];
 export const SettingsPage: React.FC<SettingsPageProps> = ({ isDarkMode, setIsDarkMode }) => {
   const [activeTab, setActiveTab] = useState<TabId>('appearance');
   const [tokenInfo, setTokenInfo] = useState('');
+  const [newToken, setNewToken] = useState('');
+  const [showTokenInput, setShowTokenInput] = useState(false);
 
   // 加载 Token 信息
   useEffect(() => {
@@ -38,6 +40,32 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isDarkMode, setIsDar
   const handleLogout = () => {
     localStorage.removeItem('token');
     window.location.href = '/login';
+  };
+
+  const handleUpdateToken = async (regenerate = false) => {
+    try {
+      const response = await fetch('/api/v1/auth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(regenerate ? { regenerate: true } : { token: newToken }),
+      });
+      const data = await response.json();
+
+      if (data.code === 0) {
+        // 更新本地 token
+        localStorage.setItem('token', data.data.token);
+        setTokenInfo(data.data.token.slice(0, 8) + '...' + data.data.token.slice(-4));
+        setShowTokenInput(false);
+        setNewToken('');
+        alert('Token 已更新，请重新登录');
+        window.location.href = '/login';
+      } else {
+        alert(data.message || '更新失败');
+      }
+    } catch (error) {
+      console.error('更新 Token 失败:', error);
+      alert('更新失败，请检查网络连接');
+    }
   };
 
   return (
@@ -128,6 +156,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isDarkMode, setIsDar
                     <span className="text-muted-foreground">技术栈</span>
                     <span className="font-medium">React 19 + Vite 6</span>
                   </div>
+                  <a
+                    href="https://github.com/cicbyte/aic"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between text-sm group hover:bg-gray-50 dark:hover:bg-slate-800/50 -mx-2 px-2 py-1.5 rounded-lg transition-colors"
+                  >
+                    <span className="text-muted-foreground">GitHub 仓库</span>
+                    <div className="flex items-center gap-1.5 text-primary group-hover:gap-2 transition-all">
+                      <span className="font-medium">cicbyte/aic</span>
+                      <ExternalLink size={14} className="opacity-70" />
+                    </div>
+                  </a>
                 </div>
               </div>
             </div>
@@ -143,30 +183,96 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isDarkMode, setIsDar
                     访问令牌
                   </h3>
                 </div>
-                <div className="p-5 space-y-4">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">当前 Token</span>
-                    <span className="font-medium font-mono">{tokenInfo || '加载中...'}</span>
+
+                {!showTokenInput ? (
+                  <div className="p-5">
+                    {/* Token 显示卡片 */}
+                    <div className="bg-gray-50 dark:bg-slate-800/50 rounded-lg p-4 mb-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs text-muted-foreground">当前 Token</span>
+                        <span className="font-mono text-xs text-gray-600 dark:text-slate-400">
+                          {tokenInfo || '加载中...'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Token 用于 API 认证，请妥善保管
+                      </p>
+                    </div>
+
+                    {/* 操作按钮组 */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setShowTokenInput(true)}
+                        className="flex flex-col items-center gap-2 px-4 py-3 rounded-lg border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 hover:border-primary/50 transition-all group"
+                      >
+                        <Edit2 size={18} className="text-gray-600 dark:text-slate-400 group-hover:text-primary transition-colors" />
+                        <span className="text-xs font-medium text-gray-700 dark:text-slate-300">自定义</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm('确定要重新生成 Token 吗？旧 Token 将立即失效！')) {
+                            handleUpdateToken(true);
+                          }
+                        }}
+                        className="flex flex-col items-center gap-2 px-4 py-3 rounded-lg border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800 hover:border-primary/50 transition-all group"
+                      >
+                        <RefreshCw size={18} className="text-gray-600 dark:text-slate-400 group-hover:text-primary transition-colors" />
+                        <span className="text-xs font-medium text-gray-700 dark:text-slate-300">重新生成</span>
+                      </button>
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Token 用于 API 认证，请妥善保管
-                  </p>
-                </div>
+                ) : (
+                  /* 编辑表单 */
+                  <div className="p-5">
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                          新 Token
+                        </label>
+                        <input
+                          type="text"
+                          value={newToken}
+                          onChange={(e) => setNewToken(e.target.value)}
+                          placeholder="请输入新的 Token（至少12位）"
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-primary focus:border-transparent"
+                          autoFocus
+                        />
+                        <p className="text-xs text-muted-foreground mt-1.5">
+                          Token 长度不能少于12位
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleUpdateToken(false)}
+                          disabled={newToken.length < 12}
+                          className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-primary hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+                        >
+                          <Check size={16} />
+                          保存
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowTokenInput(false);
+                            setNewToken('');
+                          }}
+                          className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                        >
+                          取消
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* 登出按钮 */}
               <div className="bg-card rounded-xl border border-border overflow-hidden">
-                <div className="px-5 py-4 border-b border-border">
-                  <h3 className="text-sm font-semibold flex items-center gap-2">
-                    <LogOut size={16} className="text-primary" />
-                    登出
-                  </h3>
-                </div>
                 <div className="p-5">
                   <button
                     onClick={handleLogout}
-                    className="w-full px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
                   >
+                    <LogOut size={18} />
                     退出登录
                   </button>
                 </div>
