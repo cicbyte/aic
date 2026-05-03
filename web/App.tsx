@@ -186,13 +186,8 @@ const AppContent: React.FC = () => {
     return <InitPage />;
   }
 
-  // 如果未认证，显示登录页面
-  if (!isAuthenticated) {
-    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
-  }
-
-  // 如果未认证，显示登录页面
-  if (!isAuthenticated) {
+  // 如果未认证，或访问 /login 路径，显示登录页面
+  if (!isAuthenticated || location.pathname === '/login') {
     return <LoginPage onLoginSuccess={handleLoginSuccess} />;
   }
 
@@ -267,9 +262,6 @@ const AppContent: React.FC = () => {
 
     return (
       <Routes>
-        <Route path="/login" element={
-          <LoginPage onLoginSuccess={handleLoginSuccess} />
-        } />
         <Route path="/" element={
           <DashboardPage
             categories={categories.categories}

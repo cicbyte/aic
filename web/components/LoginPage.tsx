@@ -58,7 +58,7 @@ export default function LoginPage({ onLoginSuccess }: LoginProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-500 to-blue-500 dark:from-emerald-700 dark:to-blue-700 flex items-center justify-center p-4">
+    <div className="fixed inset-0 h-screen w-screen bg-gradient-to-br from-emerald-500 to-blue-500 dark:from-emerald-700 dark:to-blue-700 flex items-center justify-center p-4">
       <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-8 w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
