@@ -413,9 +413,9 @@ export const PromptEditorPage: React.FC<PromptEditorPageProps> = ({
       </div>
 
       {/* Editor / Preview */}
-      <div className="flex-1 overflow-hidden relative">
+      <div className="flex-1 overflow-hidden relative" style={{ minHeight: '400px' }}>
         <textarea
-          className={`absolute inset-0 w-full h-full p-5 resize-none focus:outline-none font-mono text-[13px] leading-7 text-gray-800 dark:text-slate-200 bg-white dark:bg-slate-900 ${
+          className={`absolute inset-0 w-full h-full p-5 resize-none focus:outline-none font-mono text-[13px] leading-7 text-gray-800 dark:text-slate-200 bg-white dark:bg-slate-900 overflow-y-auto ${
             isPreview ? 'hidden' : ''
           }`}
           placeholder={'# 系统角色\n你是一个有用的助手...\n\n## 任务\n你的任务是...'}

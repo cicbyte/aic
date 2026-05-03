@@ -1124,7 +1124,9 @@ export const SkillDetailPage = () => {
                     onChange={handleContentChange}
                     theme={vscodeDark}
                     extensions={[...getLanguageExtension(selectedFile.name)]}
-                    className="h-full text-sm"
+                    className="text-sm"
+                    height="100%"
+                    style={{ height: '100%' }}
                     onContextMenu={handleEditorContextMenu}
                     basicSetup={{
                       lineNumbers: true,
@@ -1255,7 +1257,9 @@ export const SkillDetailPage = () => {
                         value={previewFileContent}
                         theme={vscodeDark}
                         extensions={[...getLanguageExtension(previewFilePath)]}
-                        className="h-full text-sm"
+                        className="text-sm"
+                        height="100%"
+                        style={{ height: '100%' }}
                         editable={false}
                         basicSetup={{
                           lineNumbers: true,
