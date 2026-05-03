@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { BarChart3, Cpu, MessageSquareText, FolderOpen, FolderTree, Settings, Zap, Sun, Moon, Menu, X } from 'lucide-react';
+import { BarChart3, Cpu, MessageSquareText, FolderOpen, FolderTree, Settings, Zap, Sun, Moon, Menu, X, User, LogOut, ChevronDown } from 'lucide-react';
 import { ToastProvider, useToast } from './components/Toast';
 import { useCategories } from './hooks/useCategories';
 import { useSkills } from './hooks/useSkills';
@@ -55,6 +55,10 @@ const AppContent: React.FC = () => {
   // Sidebar
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // User menu
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Data hooks - 必须在所有条件之前调用
   const categories = useCategories();
@@ -116,6 +120,18 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     setIsMobileSidebarOpen(false);
   }, [location.pathname]);
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleLoginSuccess = () => {
     setIsAuthenticated(true);
@@ -371,13 +387,54 @@ const AppContent: React.FC = () => {
               {navItems.find(n => n.id === currentView)?.label || '仪表盘'}
             </h2>
           </div>
-          <button
-            onClick={() => setIsDarkMode(!isDarkMode)}
-            className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-800 dark:text-slate-400 transition-colors"
-            title={isDarkMode ? '浅色模式' : '深色模式'}
-          >
-            {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-800 dark:text-slate-400 transition-colors"
+              title={isDarkMode ? '浅色模式' : '深色模式'}
+            >
+              {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+
+            {/* User menu */}
+            <div className="relative" ref={userMenuRef}>
+              <button
+                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-800 dark:text-slate-400 transition-colors"
+              >
+                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
+                  <User size={16} className="text-primary" />
+                </div>
+                <ChevronDown size={14} className="text-gray-400" />
+              </button>
+
+              {isUserMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-slate-900 rounded-lg shadow-lg border border-gray-200 dark:border-slate-800 py-1 z-50">
+                  <button
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      navigate('/settings');
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    <Settings size={16} />
+                    <span>设置</span>
+                  </button>
+                  <div className="h-px bg-gray-200 dark:bg-slate-800 my-1" />
+                  <button
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      handleLogout();
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  >
+                    <LogOut size={16} />
+                    <span>退出登录</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </header>
 
         {/* Page content */}
