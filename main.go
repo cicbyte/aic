@@ -36,7 +36,7 @@ func initializeAuth() {
 
 	// 打印访问信息
 	fmt.Printf("\n===========================================\n")
-	fmt.Printf("  AIC - Claude Skills 管理平台\n")
+	fmt.Printf("  AIC - AI 工具管理平台\n")
 	fmt.Printf("===========================================\n")
 	fmt.Printf("访问地址: http://localhost:8000\n")
 	fmt.Printf("认证令牌: %s\n", token)

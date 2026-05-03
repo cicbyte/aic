@@ -65,7 +65,7 @@ export default function LoginPage({ onLoginSuccess }: LoginProps) {
           <h1 className="text-4xl font-black bg-gradient-to-r from-emerald-500 to-blue-500 bg-clip-text text-transparent mb-2">
             AIC
           </h1>
-          <p className="text-gray-600 dark:text-slate-400">Claude Skills 管理平台</p>
+          <p className="text-gray-600 dark:text-slate-400">个人 AI 工具管理平台</p>
         </div>
 
         {/* 登录表单 */}

@@ -116,7 +116,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isDarkMode, setIsDar
                   </div>
                   <div>
                     <h4 className="text-sm font-bold">AI Capsule</h4>
-                    <p className="text-xs text-muted-foreground">Claude Skills 管理平台</p>
+                    <p className="text-xs text-muted-foreground">个人 AI 工具管理平台</p>
                   </div>
                 </div>
                 <div className="space-y-2">
