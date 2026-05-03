@@ -427,6 +427,7 @@ export const SkillDetailPage = () => {
   const treeCtx = useContextMenu();
   const rootCtx = useContextMenu();
   const addBtnCtx = useContextMenu();
+  const editorCtx = useContextMenu();
 
   // Hidden file inputs
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -674,6 +675,26 @@ export const SkillDetailPage = () => {
       }
     };
   }, [files, selectedFileId, content, skillId]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [selectedFileId, files, content, skillId]);
+
+  const handleEditorContextMenu = (e: React.MouseEvent) => {
+    if (!selectedFileId) return;
+    editorCtx.show(e, [
+      { label: '保存', icon: <Save size={14} />, onClick: handleSave },
+      { label: '下载', icon: <Download size={14} />, onClick: handleDownload, divider: true },
+      { label: '复制全部', icon: <FileText size={14} />, onClick: () => { navigator.clipboard.writeText(content); showToast('已复制', 'success'); } },
+    ]);
+  };
 
   const handleSave = async () => {
     if (!selectedFileId) {
@@ -950,6 +971,7 @@ export const SkillDetailPage = () => {
       {treeCtx.menu}
       {rootCtx.menu}
       {addBtnCtx.menu}
+      {editorCtx.menu}
 
       {/* Top bar */}
       <header className="flex items-center h-12 px-4 border-b border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 gap-3">
@@ -1103,6 +1125,7 @@ export const SkillDetailPage = () => {
                     theme={vscodeDark}
                     extensions={[...getLanguageExtension(selectedFile.name)]}
                     className="h-full text-sm"
+                    onContextMenu={handleEditorContextMenu}
                     basicSetup={{
                       lineNumbers: true,
                       foldGutter: true,
