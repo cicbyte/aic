@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Sun, Moon, Zap, Info, Palette, Shield, Database } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Sun, Moon, Zap, Info, Palette, Shield, LogOut, Key, Eye } from 'lucide-react';
 
 interface SettingsPageProps {
   isDarkMode: boolean;
@@ -8,6 +8,7 @@ interface SettingsPageProps {
 
 const tabs = [
   { id: 'appearance', icon: Palette, label: '外观' },
+  { id: 'security', icon: Shield, label: '安全' },
   { id: 'about', icon: Info, label: '关于' },
 ] as const;
 
@@ -15,6 +16,29 @@ type TabId = typeof tabs[number]['id'];
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({ isDarkMode, setIsDarkMode }) => {
   const [activeTab, setActiveTab] = useState<TabId>('appearance');
+  const [tokenInfo, setTokenInfo] = useState('');
+
+  // 加载 Token 信息
+  useEffect(() => {
+    const loadTokenInfo = async () => {
+      try {
+        const response = await fetch('/api/v1/auth/token');
+        const data = await response.json();
+        if (data.code === 0) {
+          setTokenInfo(data.data.token);
+        }
+      } catch (error) {
+        console.error('获取 Token 信息失败:', error);
+      }
+    };
+
+    loadTokenInfo();
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    window.location.href = '/login';
+  };
 
   return (
     <div className="h-full flex">
@@ -104,6 +128,47 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isDarkMode, setIsDar
                     <span className="text-muted-foreground">技术栈</span>
                     <span className="font-medium">React 19 + Vite 6</span>
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'security' && (
+            <div className="space-y-4">
+              {/* Token 信息 */}
+              <div className="bg-card rounded-xl border border-border overflow-hidden">
+                <div className="px-5 py-4 border-b border-border">
+                  <h3 className="text-sm font-semibold flex items-center gap-2">
+                    <Key size={16} className="text-primary" />
+                    访问令牌
+                  </h3>
+                </div>
+                <div className="p-5 space-y-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">当前 Token</span>
+                    <span className="font-medium font-mono">{tokenInfo || '加载中...'}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Token 用于 API 认证，请妥善保管
+                  </p>
+                </div>
+              </div>
+
+              {/* 登出按钮 */}
+              <div className="bg-card rounded-xl border border-border overflow-hidden">
+                <div className="px-5 py-4 border-b border-border">
+                  <h3 className="text-sm font-semibold flex items-center gap-2">
+                    <LogOut size={16} className="text-primary" />
+                    登出
+                  </h3>
+                </div>
+                <div className="p-5">
+                  <button
+                    onClick={handleLogout}
+                    className="w-full px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    退出登录
+                  </button>
                 </div>
               </div>
             </div>

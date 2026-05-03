@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	controller "github.com/cicbyte/aic/internal/controller"
-
-	"github.com/cicbyte/aic/internal/service"
+	"github.com/cicbyte/aic/internal/middleware"
+	service "github.com/cicbyte/aic/internal/service"
 	"github.com/cicbyte/aic/library/libRouter"
 	"github.com/gogf/gf/v2/net/ghttp"
 )
@@ -17,12 +17,27 @@ func (router *Router) BindController(ctx context.Context, group *ghttp.RouterGro
 	group.Group("/api/v1", func(group *ghttp.RouterGroup) {
 		group.Middleware(service.Middleware().MiddlewareCORS)
 
-		group.Bind(
-			controller.Categories,
-			controller.Health,
-			controller.Skills,
-			controller.Prompts,
-		)
+		// 认证相关接口（不需要认证）
+		authGroup := group.Group("/auth")
+		{
+			authGroup.Bind(
+				controller.Auth,
+			)
+		}
+
+		// 需要认证的接口
+		protectedGroup := group.Group("")
+		protectedGroup.Middleware(func(r *ghttp.Request) {
+			middleware.AuthMiddleware(r)
+		})
+		{
+			protectedGroup.Bind(
+				controller.Categories,
+				controller.Health,
+				controller.Skills,
+				controller.Prompts,
+			)
+		}
 
 		// 技能下载特殊处理
 		group.GET("/skills/download", func(r *ghttp.Request) {

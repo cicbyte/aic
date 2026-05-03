@@ -4,10 +4,31 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
+
+  // 添加认证 token
+  const token = localStorage.getItem('token');
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string>),
+  };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   const response = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
     ...options,
+    headers,
   });
+
+  // 处理 401 未授权错误
+  if (response.status === 401) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('userInfo');
+    window.location.href = '/login';
+    throw new Error('认证失败，请重新登录');
+  }
+
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: '请求失败' }));
     throw new Error(error.message || `HTTP ${response.status}`);

@@ -57,7 +57,5 @@ export function useCategories() {
     }
   };
 
-  useEffect(() => { loadCategories(); }, [loadCategories]);
-
   return { categories, loading, loadCategories, createCategory, updateCategory, deleteCategory };
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { BarChart3, Cpu, MessageSquareText, FolderOpen, FolderTree, Settings, Zap, Sun, Moon, Menu, X } from 'lucide-react';
 import { ToastProvider, useToast } from './components/Toast';
 import { useCategories } from './hooks/useCategories';
@@ -17,6 +17,7 @@ import { CategoriesPage } from './components/CategoriesPage';
 import { SettingsPage } from './components/SettingsPage';
 import { CreateSkillModal } from './components/CreateSkillModal';
 import { CreateProjectModal } from './components/CreateProjectModal';
+import LoginPage from './components/LoginPage';
 import type { ViewMode } from './types';
 
 interface NavItem {
@@ -39,6 +40,11 @@ const AppContent: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // 认证状态
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return !!localStorage.getItem('token');
+  });
+
   // Dark mode
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('aic_dark_mode');
@@ -46,28 +52,15 @@ const AppContent: React.FC = () => {
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
 
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', isDarkMode);
-    localStorage.setItem('aic_dark_mode', String(isDarkMode));
-  }, [isDarkMode]);
-
   // Sidebar
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  // Data hooks
+  // Data hooks - 必须在所有条件之前调用
   const categories = useCategories();
   const skills = useSkills();
   const prompts = usePrompts();
   const projects = useProjects();
-
-  // Initial load
-  useEffect(() => {
-    categories.loadCategories();
-    skills.loadSkills();
-    prompts.loadPrompts();
-    projects.loadProjects();
-  }, []);
 
   // Modals
   const [createSkillModal, setCreateSkillModal] = useState(false);
@@ -77,6 +70,67 @@ const AppContent: React.FC = () => {
   const [promptEditorId, setPromptEditorId] = useState<number | null>(null);
   const [promptNewProjectId, setPromptNewProjectId] = useState<number | null>(null);
   const [projectDetailId, setProjectDetailId] = useState<number | null>(null);
+
+  // 检查 URL 中的 token 参数（用于分享链接直接登录）
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlToken = urlParams.get('token');
+
+    if (urlToken) {
+      // 保存 URL 中的 token
+      localStorage.setItem('token', urlToken);
+      setIsAuthenticated(true);
+
+      // 清除 URL 中的 token 参数
+      const url = new URL(window.location.href);
+      url.searchParams.delete('token');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, []);
+
+  // Dark mode effect
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDarkMode);
+    localStorage.setItem('aic_dark_mode', String(isDarkMode));
+  }, [isDarkMode]);
+
+  // Initial data load - 只在认证后加载一次
+  const hasLoadedDataRef = React.useRef(false);
+  useEffect(() => {
+    if (isAuthenticated && !hasLoadedDataRef.current) {
+      hasLoadedDataRef.current = true;
+      categories.loadCategories();
+      prompts.loadPrompts();
+      projects.loadProjects();
+    }
+  }, [isAuthenticated]);
+
+  // Reset the ref when logged out
+  useEffect(() => {
+    if (!isAuthenticated) {
+      hasLoadedDataRef.current = false;
+    }
+  }, [isAuthenticated]);
+
+  // Close mobile sidebar on route change
+  useEffect(() => {
+    setIsMobileSidebarOpen(false);
+  }, [location.pathname]);
+
+  const handleLoginSuccess = () => {
+    setIsAuthenticated(true);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setIsAuthenticated(false);
+    navigate('/login');
+  };
+
+  // 如果未认证，显示登录页面
+  if (!isAuthenticated) {
+    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+  }
 
   const openNewPrompt = (projectId?: number) => {
     setPromptEditorId(null);
@@ -115,11 +169,6 @@ const AppContent: React.FC = () => {
     }
   };
 
-  // Close mobile sidebar on route change
-  useEffect(() => {
-    setIsMobileSidebarOpen(false);
-  }, [location.pathname]);
-
   const renderPage = () => {
     if (promptEditorId !== null || promptNewProjectId !== null) {
       const id = promptEditorId;
@@ -154,6 +203,9 @@ const AppContent: React.FC = () => {
 
     return (
       <Routes>
+        <Route path="/login" element={
+          <LoginPage onLoginSuccess={handleLoginSuccess} />
+        } />
         <Route path="/" element={
           <DashboardPage
             categories={categories.categories}
