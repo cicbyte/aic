@@ -1095,8 +1095,55 @@ export const SkillDetailPage = () => {
                   const fm = parseFrontmatter(content);
                   const mk = Object.keys(fm.meta);
                   return (
-                  <div className="h-full overflow-auto md-preview [&_.wmde-markdown]:!bg-transparent">
-                    <style>{`.md-preview .wmde-markdown h1,.md-preview .wmde-markdown h2{border-bottom:none!important;padding-bottom:0!important}.md-preview .wmde-markdown{padding:16px!important}`}</style>
+                  <div className="h-full overflow-auto md-preview bg-white dark:bg-slate-900">
+                    <style>{`
+                      .md-preview .wmde-markdown {
+                        padding: 16px !important;
+                        background: transparent !important;
+                        color: inherit !important;
+                      }
+                      .md-preview .wmde-markdown h1,
+                      .md-preview .wmde-markdown h2 {
+                        border-bottom: none !important;
+                        padding-bottom: 0 !important;
+                      }
+                      .dark .md-preview .wmde-markdown {
+                        color: rgb(203, 213, 225) !important;
+                      }
+                      .dark .md-preview .wmde-markdown h1,
+                      .dark .md-preview .wmde-markdown h2,
+                      .dark .md-preview .wmde-markdown h3,
+                      .dark .md-preview .wmde-markdown h4,
+                      .dark .md-preview .wmde-markdown h5,
+                      .dark .md-preview .wmde-markdown h6 {
+                        color: rgb(226, 232, 240) !important;
+                      }
+                      .dark .md-preview .wmde-markdown code {
+                        background-color: rgb(30, 41, 59) !important;
+                        color: rgb(248, 250, 252) !important;
+                      }
+                      .dark .md-preview .wmde-markdown pre {
+                        background-color: rgb(30, 41, 59) !important;
+                        border: 1px solid rgb(51, 65, 85) !important;
+                      }
+                      .dark .md-preview .wmde-markdown pre code {
+                        background-color: transparent !important;
+                      }
+                      .dark .md-preview .wmde-markdown a {
+                        color: rgb(56, 189, 248) !important;
+                      }
+                      .dark .md-preview .wmde-markdown blockquote {
+                        border-left-color: rgb(71, 85, 105) !important;
+                        color: rgb(148, 163, 184) !important;
+                      }
+                      .dark .md-preview .wmde-markdown table {
+                        border-color: rgb(51, 65, 85) !important;
+                      }
+                      .dark .md-preview .wmde-markdown td,
+                      .dark .md-preview .wmde-markdown th {
+                        border-color: rgb(51, 65, 85) !important;
+                      }
+                    `}</style>
                     {mk.length > 0 && (
                       <div className="mx-4 mt-3 mb-2 p-3 rounded-lg bg-white/60 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-700">
                         <div className="grid gap-1.5 text-xs">
