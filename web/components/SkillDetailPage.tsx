@@ -539,6 +539,10 @@ export const SkillDetailPage = () => {
     try {
       await skillApi.tagCreate(skillId, version, publishNoteInput.trim() || undefined);
       showToast(`已发布 v${version}`, 'success');
+
+      // 刷新文件列表以获取更新后的 SKILL.md
+      await loadDetail();
+
       setShowPublishForm(false);
       setPublishVersionInput('');
       setPublishNoteInput('');

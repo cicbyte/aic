@@ -1106,6 +1106,31 @@ func (s *sSkills) CreateTag(ctx context.Context, skillId int, version string, no
 	fp := entity[dao.Skills.Columns().FilePath].String()
 	skillDir := filepath.Join("data/skills", fp)
 
+	// 获取技能信息用于验证和修复 SKILL.md
+	skillName := entity[dao.Skills.Columns().Name].String()
+	skillDesc := entity[dao.Skills.Columns().Description].String()
+
+	// 校验和修复 SKILL.md
+	skillMdPath := filepath.Join(skillDir, "SKILL.md")
+	var content string
+	if gfile.Exists(skillMdPath) {
+		content = gfile.GetContents(skillMdPath)
+		// 验证和修复 SKILL.md
+		updatedContent, err := validateAndFixSkillMd(content, skillName, skillDesc, version)
+		if err != nil {
+			return gerror.Newf("SKILL.md验证失败: %v", err)
+		}
+		content = updatedContent
+	} else {
+		// SKILL.md 不存在，创建新的
+		content = generateDefaultSkillMd(skillName, skillDesc, version)
+	}
+
+	// 写入修复后的 SKILL.md
+	if err := gfile.PutContents(skillMdPath, content); err != nil {
+		return gerror.Newf("写入SKILL.md失败: %v", err)
+	}
+
 	gitCommitAll(skillDir, fmt.Sprintf("Release %s", version))
 
 	e = gitCreateTag(skillDir, version, note)
@@ -1171,4 +1196,206 @@ func (s *sSkills) CheckoutTag(ctx context.Context, skillId int, tag string) erro
 	}
 	gitCommitAll(skillDir, fmt.Sprintf("Rollback to %s", tag))
 	return nil
+}
+
+// validateAndFixSkillMd 验证和修复 SKILL.md 文件
+func validateAndFixSkillMd(content string, skillName string, skillDesc string, version string) (string, error) {
+	lines := strings.Split(content, "\n")
+	var result []string
+	inYaml := false
+	inMetadata := false
+
+	// 检查的字段
+	hasName := false
+	hasDescription := false
+	hasMetadata := false
+	hasVersion := false
+
+	// 第一遍：分析现有内容
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		if trimmed == "---" {
+			if !inYaml {
+				inYaml = true
+			} else {
+				inYaml = false
+				inMetadata = false
+			}
+			continue
+		}
+
+		if !inYaml {
+			continue
+		}
+
+		// 检查 metadata 块
+		if strings.HasPrefix(trimmed, "metadata:") {
+			inMetadata = true
+			hasMetadata = true
+			continue
+		}
+
+		// 检查缩进，判断是否还在 metadata 块内
+		if inMetadata && len(trimmed) > 0 && trimmed[0] != ' ' && trimmed[0] != '\t' {
+			inMetadata = false
+		}
+
+		// 检查必须字段
+		lowerTrimmed := strings.ToLower(trimmed)
+		if strings.HasPrefix(lowerTrimmed, "name:") || strings.HasPrefix(lowerTrimmed, "name :") {
+			hasName = true
+		}
+		if strings.HasPrefix(lowerTrimmed, "description:") || strings.HasPrefix(lowerTrimmed, "description :") {
+			hasDescription = true
+		}
+		if inMetadata && (strings.HasPrefix(lowerTrimmed, "version:") || strings.HasPrefix(lowerTrimmed, "version :")) {
+			hasVersion = true
+		}
+	}
+
+	// 第二遍：重建内容，修复缺失的字段
+	inYaml = false
+	inMetadata = false
+	yamlEndIndex := -1
+
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		if trimmed == "---" {
+			if !inYaml {
+				// YAML 开始
+				inYaml = true
+				result = append(result, line)
+				continue
+			} else {
+				// YAML 结束
+				inYaml = false
+				inMetadata = false
+				yamlEndIndex = i
+				result = append(result, line)
+				continue
+			}
+		}
+
+		if !inYaml {
+			result = append(result, line)
+			continue
+		}
+
+		// 在 YAML 内部处理
+		if strings.HasPrefix(trimmed, "metadata:") {
+			inMetadata = true
+			hasMetadata = true
+			result = append(result, line)
+
+			// 如果 metadata 块内没有 version，添加它
+			if !hasVersion {
+				result = append(result, fmt.Sprintf("  version: \"%s\"", version))
+				hasVersion = true
+			}
+			continue
+		}
+
+		// 检查缩进判断是否还在 metadata 内
+		if inMetadata && len(trimmed) > 0 && trimmed[0] != ' ' && trimmed[0] != '\t' {
+			inMetadata = false
+		}
+
+		// 跳过 metadata 块内的旧 version 字段（因为我们已经添加了新的）
+		if inMetadata && (strings.HasPrefix(trimmed, "version:") || strings.HasPrefix(trimmed, "version :")) {
+			continue
+		}
+
+		// 更新 name 和 description 为数据库中的值（确保一致性）
+		if strings.HasPrefix(trimmed, "name:") || strings.HasPrefix(trimmed, "name :") {
+			result = append(result, fmt.Sprintf("name: %s", skillName))
+			continue
+		}
+		if strings.HasPrefix(trimmed, "description:") || strings.HasPrefix(trimmed, "description :") {
+			// 保留引号格式
+			if strings.Contains(trimmed, `"`) {
+				result = append(result, fmt.Sprintf("description: \"%s\"", skillDesc))
+			} else {
+				result = append(result, fmt.Sprintf("description: %s", skillDesc))
+			}
+			continue
+		}
+
+		result = append(result, line)
+	}
+
+	// 如果没有 YAML frontmatter，创建完整的
+	if yamlEndIndex == -1 {
+		// 没有找到 YAML 结束标记，说明没有 frontmatter
+		return generateDefaultSkillMd(skillName, skillDesc, version), nil
+	}
+
+	// 检查缺失的字段并在 metadata 前插入
+	finalResult := make([]string, 0, len(result)+10)
+	yamlStarted := false
+
+	for _, line := range result {
+		trimmed := strings.TrimSpace(line)
+
+		if trimmed == "---" {
+			if !yamlStarted {
+				yamlStarted = true
+				finalResult = append(finalResult, line)
+
+				// 在 --- 后添加缺失的字段（如果有）
+				inserted := false
+				if !hasMetadata {
+					// 添加 metadata 块
+					finalResult = append(finalResult, "metadata:")
+					finalResult = append(finalResult, fmt.Sprintf("  version: \"%s\"", version))
+					inserted = true
+				} else if !hasVersion {
+					// 有 metadata 但没有 version，这不应该发生，但以防万一
+					// 这里不处理，因为上面已经在 metadata 后添加了
+				}
+
+				// 添加缺失的 name
+				if !hasName && !inserted {
+					finalResult = append(finalResult, fmt.Sprintf("name: %s", skillName))
+				}
+
+				// 添加缺失的 description
+				if !hasDescription && !inserted {
+					desc := strings.ReplaceAll(skillDesc, `"`, `\"`)
+					finalResult = append(finalResult, fmt.Sprintf("description: \"%s\"", desc))
+				}
+
+				continue
+			}
+		}
+
+		finalResult = append(finalResult, line)
+	}
+
+	return strings.Join(finalResult, "\n"), nil
+}
+
+// generateDefaultSkillMd 生成默认的 SKILL.md 内容
+func generateDefaultSkillMd(skillName string, skillDesc string, version string) string {
+	escapedDesc := strings.ReplaceAll(skillDesc, `"`, `\"`)
+	escapedDesc = strings.ReplaceAll(escapedDesc, "\n", " ")
+
+	return fmt.Sprintf(`---
+name: %s
+description: "%s"
+metadata:
+  version: "%s"
+---
+
+# %s
+
+## Instructions
+
+Describe what this skill does and how Claude should use it.
+
+## Examples
+
+Provide examples of using this skill.
+`, skillName, escapedDesc, version, skillName)
 }
