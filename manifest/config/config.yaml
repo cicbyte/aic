@@ -12,7 +12,7 @@ logger:
 # https://goframe.org/docs/core/gdb-config-file
 database:
   default:
-    link: "mysql:root:hasd721ba9@tcp(192.168.31.93:39507)/aic-dev"
+    link: "mysql:root:123456@tcp(127.0.0.1:3306)/aic"
 
 # 技能文件存储配置
 skill_storage:

@@ -17,6 +17,14 @@ func (router *Router) BindController(ctx context.Context, group *ghttp.RouterGro
 	group.Group("/api/v1", func(group *ghttp.RouterGroup) {
 		group.Middleware(service.Middleware().MiddlewareCORS)
 
+		// 初始化相关接口（不需要认证）
+		initGroup := group.Group("/init")
+		{
+			initGroup.Bind(
+				controller.Init,
+			)
+		}
+
 		// 认证相关接口（不需要认证）
 		authGroup := group.Group("/auth")
 		{

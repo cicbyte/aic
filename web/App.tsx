@@ -18,6 +18,8 @@ import { SettingsPage } from './components/SettingsPage';
 import { CreateSkillModal } from './components/CreateSkillModal';
 import { CreateProjectModal } from './components/CreateProjectModal';
 import LoginPage from './components/LoginPage';
+import InitPage from './components/InitPage';
+import { initApi } from './services/initService';
 import type { ViewMode } from './types';
 
 interface NavItem {
@@ -39,6 +41,10 @@ const AppContent: React.FC = () => {
   const { showToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // 初始化状态
+  const [initStatus, setInitStatus] = useState<{ initialized: boolean } | null>(null);
+  const [checkingInit, setCheckingInit] = useState(true);
 
   // 认证状态
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -75,6 +81,24 @@ const AppContent: React.FC = () => {
   const [promptNewProjectId, setPromptNewProjectId] = useState<number | null>(null);
   const [projectDetailId, setProjectDetailId] = useState<number | null>(null);
 
+  // 检查初始化状态
+  useEffect(() => {
+    const checkInitStatus = async () => {
+      try {
+        const status = await initApi.status();
+        setInitStatus(status);
+      } catch (error) {
+        console.error('检查初始化状态失败:', error);
+        // 如果检查失败，假设已初始化（避免无限循环）
+        setInitStatus({ initialized: true });
+      } finally {
+        setCheckingInit(false);
+      }
+    };
+
+    checkInitStatus();
+  }, []);
+
   // 检查 URL 中的 token 参数（用于分享链接直接登录）
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -101,13 +125,13 @@ const AppContent: React.FC = () => {
   // Initial data load - 只在认证后加载一次
   const hasLoadedDataRef = React.useRef(false);
   useEffect(() => {
-    if (isAuthenticated && !hasLoadedDataRef.current) {
+    if (isAuthenticated && !hasLoadedDataRef.current && initStatus?.initialized) {
       hasLoadedDataRef.current = true;
       categories.loadCategories();
       prompts.loadPrompts();
       projects.loadProjects();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, initStatus]);
 
   // Reset the ref when logged out
   useEffect(() => {
@@ -142,6 +166,30 @@ const AppContent: React.FC = () => {
     setIsAuthenticated(false);
     navigate('/login');
   };
+
+  // 如果正在检查初始化状态，显示加载
+  if (checkingInit) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-emerald-500 to-blue-500 dark:from-emerald-700 dark:to-blue-700 flex items-center justify-center">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-8">
+          <div className="flex items-center gap-3">
+            <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-gray-700 dark:text-slate-300">正在检查系统状态...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 如果未初始化，显示初始化页面
+  if (!initStatus?.initialized) {
+    return <InitPage />;
+  }
+
+  // 如果未认证，显示登录页面
+  if (!isAuthenticated) {
+    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+  }
 
   // 如果未认证，显示登录页面
   if (!isAuthenticated) {

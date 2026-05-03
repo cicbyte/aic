@@ -73,3 +73,5 @@ design-system/
 
 playwright-report/
 test-results/
+
+.initialized
