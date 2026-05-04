@@ -42,9 +42,13 @@ const AppContent: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 初始化状态
-  const [initStatus, setInitStatus] = useState<{ initialized: boolean } | null>(null);
-  const [checkingInit, setCheckingInit] = useState(true);
+  // 初始化状态 — 优先使用缓存，避免每次刷新都显示加载页
+  const [initStatus, setInitStatus] = useState<{ initialized: boolean } | null>(() => {
+    return localStorage.getItem('aic_initialized') === 'true' ? { initialized: true } : null;
+  });
+  const [checkingInit, setCheckingInit] = useState(() => {
+    return localStorage.getItem('aic_initialized') !== 'true';
+  });
 
   // 认证状态
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -87,9 +91,13 @@ const AppContent: React.FC = () => {
       try {
         const status = await initApi.status();
         setInitStatus(status);
+        if (status.initialized) {
+          localStorage.setItem('aic_initialized', 'true');
+        } else {
+          localStorage.removeItem('aic_initialized');
+        }
       } catch (error) {
         console.error('检查初始化状态失败:', error);
-        // 如果检查失败，假设已初始化（避免无限循环）
         setInitStatus({ initialized: true });
       } finally {
         setCheckingInit(false);
