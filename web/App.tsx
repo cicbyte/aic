@@ -273,6 +273,9 @@ const AppContent: React.FC = () => {
             loadProjects={() => projects.loadProjects()}
           />
         } />
+        <Route path="/skills/:id" element={
+          <SkillDetailPage />
+        } />
         <Route path="/skills" element={
           <SkillsPage
             skills={skills.skills}
@@ -290,9 +293,6 @@ const AppContent: React.FC = () => {
             onSkillClick={(id) => navigate(`/skills/${id}`)}
             onDeleteSkill={(id) => skills.deleteSkill(id)}
           />
-        } />
-        <Route path="/skills/:id" element={
-          <SkillDetailPage />
         } />
         <Route path="/prompts" element={
           <PromptsPage

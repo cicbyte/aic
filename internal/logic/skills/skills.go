@@ -760,7 +760,6 @@ func scanDirectory(dirPath string, relativePath string) ([]*model.FileNode, erro
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("[DEBUG] scanDirectory: dir=%s, entries=%d\n", dirPath, len(entries))
 
 	for _, entry := range entries {
 		name := entry.Name()
@@ -802,31 +801,25 @@ func scanDirectory(dirPath string, relativePath string) ([]*model.FileNode, erro
 		}
 	}
 
-	fmt.Printf("[DEBUG] scanDirectory: returning %d nodes for dir=%s\n", len(nodes), dirPath)
-
-	for _, node := range nodes {
-		fmt.Printf("[DEBUG] scanDirectory: node: ID=%s, Name=%s, Type=%s, Children=%d\n", node.Id, node.Name, node.Type, len(node.Children))
-	}
-
 	return nodes, nil
 }
 
 // 写入文件到磁盘
-func writeFilesToDisk(basePath string, files []*model.FileNode, relativePath string) error {
-	fmt.Printf("[DEBUG] writeFilesToDisk: basePath=%s, relativePath=%s, files count=%d\n", basePath, relativePath, len(files))
-
+func writeFilesToDisk(basePath string, files []*model.FileNode, _ string) error {
 	for _, file := range files {
-		// 使用 file.Path 而不是 file.Name，保留完整路径
-		fullPath := filepath.Join(basePath, relativePath, file.Path)
-		fmt.Printf("[DEBUG] writeFilesToDisk: writing %s (type=%s)\n", fullPath, file.Type)
+		// file.Path 已包含从 skill 根目录开始的完整相对路径，直接拼接
+		fullPath := filepath.Join(basePath, file.Path)
 
 		if file.Type == "folder" {
-			// 创建目录
 			if err := os.MkdirAll(fullPath, 0755); err != nil {
 				return err
 			}
+			if len(file.Children) > 0 {
+				if err := writeFilesToDisk(basePath, file.Children, ""); err != nil {
+					return err
+				}
+			}
 		} else {
-			// 写入文件
 			dir := filepath.Dir(fullPath)
 			if err := os.MkdirAll(dir, 0755); err != nil {
 				return err
@@ -1020,13 +1013,31 @@ func parseZipFromPath(zipPath string) ([]*model.FileNode, string, error) {
 	var skillName string
 	nodes := make(map[string]*model.FileNode)
 
+	// 第一遍：检测 ZIP 是否有单一根目录包裹
+	topLevelNames := make(map[string]bool)
+	hasTopLevelFile := false
 	for _, f := range r.File {
-		// 跳过隐藏文件
+		if strings.HasPrefix(f.Name, ".") || strings.Contains(f.Name, "/.") {
+			continue
+		}
+		fName := strings.TrimSuffix(f.Name, "/")
+		if fName == "" {
+			continue
+		}
+		parts := strings.Split(fName, "/")
+		topLevelNames[parts[0]] = true
+		if len(parts) == 1 && !f.FileInfo().IsDir() {
+			hasTopLevelFile = true
+		}
+	}
+	stripRoot := len(topLevelNames) == 1 && !hasTopLevelFile
+
+	// 第二遍：构建文件节点
+	for _, f := range r.File {
 		if strings.HasPrefix(f.Name, ".") || strings.Contains(f.Name, "/.") {
 			continue
 		}
 
-		// 标准化路径
 		fName := strings.TrimSuffix(f.Name, "/")
 		if fName == "" {
 			continue
@@ -1037,17 +1048,16 @@ func parseZipFromPath(zipPath string) ([]*model.FileNode, string, error) {
 			continue
 		}
 
-		// 处理文件路径：如果有根目录则移除，否则直接使用
-		var relPath, name string
-		if len(parts) > 1 {
-			// ZIP 包含根目录，移除第一层
+		var relPath string
+		if stripRoot && len(parts) > 1 {
 			relPath = strings.Join(parts[1:], "/")
-			name = parts[len(parts)-1]
 		} else {
-			// ZIP 直接包含文件，没有根目录
-			relPath = parts[0]
-			name = parts[0]
+			relPath = fName
 		}
+		if relPath == "" {
+			continue
+		}
+		name := parts[len(parts)-1]
 
 		if f.FileInfo().IsDir() {
 			nodes[relPath] = &model.FileNode{
@@ -1060,7 +1070,6 @@ func parseZipFromPath(zipPath string) ([]*model.FileNode, string, error) {
 			continue
 		}
 
-		// 跳过非文本文件
 		if !isTextFile(name) {
 			continue
 		}
@@ -1084,11 +1093,8 @@ func parseZipFromPath(zipPath string) ([]*model.FileNode, string, error) {
 			Content: string(content),
 		}
 
-		// 提取 skill.md 中的名称（支持大小写）
 		if strings.ToLower(name) == "skill.md" || strings.ToLower(name) == "readme.md" {
-			// 对于 SKILL.md/README.md，读取整个内容来提取 name
-			allContent := string(content)
-			extractedName := extractSkillNameFromContent(allContent)
+			extractedName := extractSkillNameFromContent(string(content))
 			if extractedName != "" && skillName == "" {
 				skillName = extractedName
 				g.Log().Infof(context.Background(), "从 %s 中提取到技能名称: %s", name, skillName)
@@ -1152,7 +1158,9 @@ func buildFileTreeFromMap(nodes map[string]*model.FileNode) []*model.FileNode {
 	var rootNodes []*model.FileNode
 
 	for _, node := range nodes {
-		parentPath := filepath.Dir(node.Path)
+		path := filepath.ToSlash(node.Path)
+		parentPath := filepath.Dir(path)
+
 		if parentPath == "." || parentPath == "" {
 			rootNodes = append(rootNodes, node)
 			continue
