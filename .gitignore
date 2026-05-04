@@ -75,3 +75,5 @@ playwright-report/
 test-results/
 
 .initialized
+*.zip
+token.txt

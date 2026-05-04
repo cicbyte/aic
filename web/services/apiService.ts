@@ -83,7 +83,23 @@ export const skillApi = {
     if (description) formData.append('description', description);
     if (categoryId) formData.append('categoryId', String(categoryId));
     if (overwrite) formData.append('overwrite', 'true');
-    const response = await fetch(`${API_BASE}/skills/import-zip`, { method: 'POST', body: formData });
+
+    const token = localStorage.getItem('token');
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE}/skills/import-zip`, {
+      method: 'POST',
+      body: formData,
+      headers,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
     const result = await response.json();
     if (result.code !== 0) throw new Error(result.message || '导入失败');
     return result.data as { skillId: number; name: string };

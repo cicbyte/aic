@@ -4,8 +4,10 @@ import (
 	"context"
 	"strings"
 
-	_ "github.com/cicbyte/aic/internal/logic"
+	"github.com/cicbyte/aic/internal/middleware"
 	"github.com/cicbyte/aic/internal/router"
+	"github.com/cicbyte/aic/internal/service"
+	_ "github.com/cicbyte/aic/internal/logic"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
 	"github.com/gogf/gf/v2/os/gcmd"
@@ -18,6 +20,11 @@ var (
 		Brief: "start http server",
 		Func: func(ctx context.Context, parser *gcmd.Parser) (err error) {
 			s := g.Server()
+
+			// 初始化认证系统
+			service.Auth().InitializeToken()
+			middleware.SetTokenValidatorFunc(service.Auth().ValidateToken)
+			g.Log().Info(ctx, "认证系统已初始化")
 
 			s.Group("/", func(group *ghttp.RouterGroup) {
 				group.Middleware(ghttp.MiddlewareHandlerResponse)

@@ -806,7 +806,24 @@ func (s *sSkills) ImportZip(ctx context.Context, req *api.ImportZipReq) (skillId
 		liberr.ErrIsNil(ctx, err, "解析ZIP文件失败")
 
 		if name == "" {
-			liberr.ErrIsNil(ctx, gerror.New("未找到 skill.md 或 skill.md 中未定义 name 字段"), "")
+			// 列出ZIP中的所有文件帮助调试
+			var fileList []string
+			for _, file := range files {
+				if file.Type == "file" {
+					fileList = append(fileList, file.Path)
+				}
+			}
+			g.Log().Errorf(ctx, "ZIP中未找到有效的 skill.md 或未定义 name 字段")
+			g.Log().Errorf(ctx, "ZIP文件列表: %v", fileList)
+
+			liberr.ErrIsNil(ctx, gerror.New(
+				"ZIP中未找到包含有效 name 字段的 skill.md 文件。\n"+
+					"请确保ZIP根目录下有 skill.md 文件，且文件开头包含 YAML front matter，格式如下：\n"+
+					"---\n"+
+					"name: 你的技能名称\n"+
+					"description: 技能描述\n"+
+					"---",
+			), "")
 			return
 		}
 		skillName = name
@@ -917,49 +934,61 @@ func parseZipFromPath(zipPath string) ([]*model.FileNode, string, error) {
 			continue
 		}
 
-		// 移除第一层目录（ZIP 包含的根目录）
+		// 处理文件路径：如果有根目录则移除，否则直接使用
+		var relPath, name string
 		if len(parts) > 1 {
-			relPath := strings.Join(parts[1:], "/")
-			name := parts[len(parts)-1]
+			// ZIP 包含根目录，移除第一层
+			relPath = strings.Join(parts[1:], "/")
+			name = parts[len(parts)-1]
+		} else {
+			// ZIP 直接包含文件，没有根目录
+			relPath = parts[0]
+			name = parts[0]
+		}
 
-			if f.FileInfo().IsDir() {
-				nodes[relPath] = &model.FileNode{
-					Id:       generateId(),
-					Name:     name,
-					Path:     relPath,
-					Type:     "folder",
-					Children: []*model.FileNode{},
-				}
-				continue
-			}
-
-			// 跳过非文本文件
-			if !isTextFile(name) {
-				continue
-			}
-
-			rc, err := f.Open()
-			if err != nil {
-				continue
-			}
-
-			content, err := io.ReadAll(rc)
-			rc.Close()
-			if err != nil {
-				continue
-			}
-
+		if f.FileInfo().IsDir() {
 			nodes[relPath] = &model.FileNode{
-				Id:      generateId(),
-				Name:    name,
-				Path:    relPath,
-				Type:    "file",
-				Content: string(content),
+				Id:       generateId(),
+				Name:     name,
+				Path:     relPath,
+				Type:     "folder",
+				Children: []*model.FileNode{},
 			}
+			continue
+		}
 
-			// 提取 skill.md 中的名称
-			if strings.ToLower(name) == "skill.md" {
-				skillName = extractSkillNameFromContent(string(content))
+		// 跳过非文本文件
+		if !isTextFile(name) {
+			continue
+		}
+
+		rc, err := f.Open()
+		if err != nil {
+			continue
+		}
+
+		content, err := io.ReadAll(rc)
+		rc.Close()
+		if err != nil {
+			continue
+		}
+
+		nodes[relPath] = &model.FileNode{
+			Id:      generateId(),
+			Name:    name,
+			Path:    relPath,
+			Type:    "file",
+			Content: string(content),
+		}
+
+		// 提取 skill.md 中的名称（支持大小写）
+		if strings.ToLower(name) == "skill.md" || strings.ToLower(name) == "readme.md" {
+			// 对于 SKILL.md/README.md，读取整个内容来提取 name
+			allContent := string(content)
+			extractedName := extractSkillNameFromContent(allContent)
+			if extractedName != "" && skillName == "" {
+				skillName = extractedName
+				g.Log().Infof(context.Background(), "从 %s 中提取到技能名称: %s", name, skillName)
 			}
 		}
 	}
@@ -972,27 +1001,46 @@ func parseZipFromPath(zipPath string) ([]*model.FileNode, string, error) {
 // extractSkillNameFromContent 从 skill.md 内容提取名称
 func extractSkillNameFromContent(content string) string {
 	if !strings.Contains(content, "---") {
+		g.Log().Debugf(context.Background(), "内容中未找到 YAML front matter 分隔符")
 		return ""
 	}
 
 	lines := strings.Split(content, "\n")
 	inYaml := false
+	yamlCount := 0
+
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
+
+		// 检测 YAML front matter 边界
 		if trimmed == "---" {
-			inYaml = !inYaml
+			if inYaml {
+				// 第二个 ---，结束 YAML
+				break
+			}
+			inYaml = true
+			yamlCount++
 			continue
 		}
+
 		if inYaml {
+			// 提取 name 字段（支持多种格式）
 			if strings.HasPrefix(trimmed, "name:") || strings.HasPrefix(trimmed, "name :") {
-				name := strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(trimmed, "name:"), "name :"))
+				// 移除 "name:" 或 "name :" 前缀
+				namePart := strings.TrimPrefix(strings.TrimPrefix(trimmed, "name:"), "name :")
+				name := strings.TrimSpace(namePart)
+
+				// 移除引号
 				name = strings.Trim(name, "\"'")
 				if name != "" {
+					g.Log().Debugf(context.Background(), "成功提取 name 字段: %s", name)
 					return name
 				}
 			}
 		}
 	}
+
+	g.Log().Debugf(context.Background(), "未能从 YAML front matter 中提取 name 字段")
 	return ""
 }
 
