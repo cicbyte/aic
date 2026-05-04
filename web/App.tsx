@@ -282,7 +282,10 @@ const AppContent: React.FC = () => {
             loadSkills={skills.loadSkills}
             categories={categories.categories}
             onCreateSkill={() => setCreateSkillModal(true)}
-            onImportZip={(file) => skills.importZip(file)}
+            onImportZip={async (file) => {
+              await skills.importZip(file);
+              skills.loadSkills();
+            }}
             onToggleFavorite={(id) => skills.toggleFavorite(id)}
             onSkillClick={(id) => navigate(`/skills/${id}`)}
             onDeleteSkill={(id) => skills.deleteSkill(id)}

@@ -641,6 +641,75 @@ Provide examples of using this skill.
 	_ = os.WriteFile(filepath.Join(dirPath, "SKILL.md"), []byte(skillMd), 0644)
 }
 
+// ensureMetadataInSkillMd 确保SKILL.md包含metadata字段，保留原有内容
+func ensureMetadataInSkillMd(filePath string, name string, description string) error {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return err
+	}
+
+	contentStr := string(content)
+	lines := strings.Split(contentStr, "\n")
+
+	// 检查是否已有YAML front matter
+	hasYamdelimeter := false
+	yamlEndIndex := -1
+
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "---" {
+			if !hasYamdelimeter {
+				hasYamdelimeter = true
+			} else {
+				yamlEndIndex = i
+				break
+			}
+		}
+	}
+
+	var newContent string
+	if hasYamdelimeter && yamlEndIndex > 0 {
+		// 已有YAML front matter，在其中插入metadata
+		hasMetadata := false
+
+		// 检查是否已有metadata字段
+		for i := 0; i < yamlEndIndex; i++ {
+			if strings.HasPrefix(strings.TrimSpace(lines[i]), "metadata:") {
+				hasMetadata = true
+				break
+			}
+		}
+
+		if !hasMetadata {
+			// 在YAML结束前插入metadata
+			metadataLines := []string{
+				"metadata:",
+				"  version: \"1.0.0\"",
+			}
+			lines = append(lines[:yamlEndIndex], append(metadataLines, lines[yamlEndIndex:]...)...)
+		}
+
+		newContent = strings.Join(lines, "\n")
+	} else {
+		// 没有YAML front matter，在文件开头添加
+		slug := toSlug(name)
+		desc := strings.ReplaceAll(description, `"`, `\"`)
+		desc = strings.ReplaceAll(desc, "\n", " ")
+		yamlHeader := fmt.Sprintf(`---
+name: %s
+slug: %s
+description: "%s"
+metadata:
+  version: "1.0.0"
+---
+
+`, name, slug, desc)
+		newContent = yamlHeader + contentStr
+	}
+
+	return os.WriteFile(filePath, []byte(newContent), 0644)
+}
+
 func collapseDashes(s string) string {
 	var b strings.Builder
 	prevDash := false
@@ -745,8 +814,10 @@ func scanDirectory(dirPath string, relativePath string) ([]*model.FileNode, erro
 // 写入文件到磁盘
 func writeFilesToDisk(basePath string, files []*model.FileNode, relativePath string) error {
 	fmt.Printf("[DEBUG] writeFilesToDisk: basePath=%s, relativePath=%s, files count=%d\n", basePath, relativePath, len(files))
+
 	for _, file := range files {
-		fullPath := filepath.Join(basePath, relativePath, file.Name)
+		// 使用 file.Path 而不是 file.Name，保留完整路径
+		fullPath := filepath.Join(basePath, relativePath, file.Path)
 		fmt.Printf("[DEBUG] writeFilesToDisk: writing %s (type=%s)\n", fullPath, file.Type)
 
 		if file.Type == "folder" {
@@ -754,20 +825,16 @@ func writeFilesToDisk(basePath string, files []*model.FileNode, relativePath str
 			if err := os.MkdirAll(fullPath, 0755); err != nil {
 				return err
 			}
-			// 递归写入子文件
-			if file.Children != nil {
-				if err := writeFilesToDisk(basePath, file.Children, filepath.Join(relativePath, file.Name)); err != nil {
-					return err
-				}
-			}
 		} else {
 			// 写入文件
 			dir := filepath.Dir(fullPath)
 			if err := os.MkdirAll(dir, 0755); err != nil {
 				return err
 			}
-			if err := os.WriteFile(fullPath, []byte(file.Content), 0644); err != nil {
-				return err
+			if file.Content != "" {
+				if err := os.WriteFile(fullPath, []byte(file.Content), 0644); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -863,6 +930,24 @@ func (s *sSkills) ImportZip(ctx context.Context, req *api.ImportZipReq) (skillId
 
 			clearSkillFiles(skillDir)
 			writeFilesToDisk(skillDir, files, "")
+
+			// 检查 SKILL.md 是否包含 metadata 字段，如果没有则补充
+			skillMdPath := filepath.Join(skillDir, "SKILL.md")
+			if gfile.Exists(skillMdPath) {
+				content, _ := os.ReadFile(skillMdPath)
+				if !strings.Contains(string(content), "metadata:") {
+					g.Log().Infof(ctx, "SKILL.md缺少metadata字段，正在补充...")
+					ensureMetadataInSkillMd(skillMdPath, skillName, req.Description)
+					g.Log().Infof(ctx, "metadata字段已补充")
+				}
+			} else {
+				// 如果没有SKILL.md，才生成模板
+				g.Log().Infof(ctx, "未找到SKILL.md，正在生成模板...")
+				slug := toSlug(skillName)
+				generateSkillMd(skillDir, slug, skillName, req.Description)
+				g.Log().Infof(ctx, "SKILL.md已生成")
+			}
+
 			gitCommitAll(skillDir, "Import from ZIP (overwrite): "+skillName)
 
 			_, err = dao.Skills.Ctx(ctx).Where(dao.Skills.Columns().Id, oldId).
@@ -883,6 +968,24 @@ func (s *sSkills) ImportZip(ctx context.Context, req *api.ImportZipReq) (skillId
 		}
 
 		writeFilesToDisk(skillDir, files, "")
+
+		// 检查 SKILL.md 是否包含 metadata 字段，如果没有则补充
+		skillMdPath := filepath.Join(skillDir, "SKILL.md")
+		if gfile.Exists(skillMdPath) {
+			content, _ := os.ReadFile(skillMdPath)
+			if !strings.Contains(string(content), "metadata:") {
+				g.Log().Infof(ctx, "SKILL.md缺少metadata字段，正在补充...")
+				ensureMetadataInSkillMd(skillMdPath, skillName, req.Description)
+				g.Log().Infof(ctx, "metadata字段已补充")
+			}
+		} else {
+			// 如果没有SKILL.md，才生成模板
+			g.Log().Infof(ctx, "未找到SKILL.md，正在生成模板...")
+			slug := toSlug(skillName)
+			generateSkillMd(skillDir, slug, skillName, req.Description)
+			g.Log().Infof(ctx, "SKILL.md已生成")
+		}
+
 		gitInit(skillDir)
 		gitCommitAll(skillDir, "Import from ZIP: "+skillName)
 
