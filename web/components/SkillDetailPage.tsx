@@ -27,6 +27,7 @@ import { skillApi } from '../services/apiService';
 import { useToast } from './Toast';
 import { useContextMenu } from './ContextMenu';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -436,6 +437,7 @@ export const SkillDetailPage = () => {
 
   // Prevent context menu from closing on blur
   const isConfirmingRef = useRef(false);
+  const [showZipConfirm, setShowZipConfirm] = useState(false);
 
   // ---- Load ----
 
@@ -934,7 +936,7 @@ export const SkillDetailPage = () => {
     { label: '新增文件', icon: <FilePlus size={14} />, onClick: () => { uploadTargetIdRef.current = null; addNode(null, 'file'); } },
     { label: '新增文件夹', icon: <FolderPlus size={14} />, onClick: () => addNode(null, 'folder') },
     { divider: true, label: '上传文件', icon: <Upload size={14} />, onClick: () => { uploadTargetIdRef.current = null; fileInputRef.current?.click(); } },
-    { label: '上传 ZIP', icon: <Archive size={14} />, onClick: () => zipInputRef.current?.click() },
+    { label: '上传 ZIP', icon: <Archive size={14} />, onClick: () => setShowZipConfirm(true) },
   ];
 
   const getAddBtnMenuItems = () => [
@@ -976,6 +978,20 @@ export const SkillDetailPage = () => {
       {rootCtx.menu}
       {addBtnCtx.menu}
       {editorCtx.menu}
+
+      {/* ZIP 覆盖确认弹框 */}
+      <Dialog open={showZipConfirm} onOpenChange={setShowZipConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>上传 ZIP 确认</DialogTitle>
+            <DialogDescription>上传 ZIP 将覆盖当前技能的所有文件内容，此操作不可撤销。确定继续吗？</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setShowZipConfirm(false)}>取消</Button>
+            <Button size="sm" onClick={() => { setShowZipConfirm(false); zipInputRef.current?.click(); }}>确定上传</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Top bar */}
       <header className="flex items-center h-12 px-4 border-b border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 gap-3">
