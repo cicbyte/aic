@@ -16,9 +16,22 @@ type TabId = typeof tabs[number]['id'];
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({ isDarkMode, setIsDarkMode }) => {
   const [activeTab, setActiveTab] = useState<TabId>('appearance');
-  const [tokenInfo, setTokenInfo] = useState('');
+  const [fullToken, setFullToken] = useState(''); // 完整的 token
   const [newToken, setNewToken] = useState('');
   const [showTokenInput, setShowTokenInput] = useState(false);
+  const [copied, setCopied] = useState(false); // 复制状态
+
+  // 复制 token 到剪贴板
+  const handleCopyToken = async () => {
+    try {
+      await navigator.clipboard.writeText(fullToken);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000); // 2秒后恢复状态
+    } catch (error) {
+      console.error('复制失败:', error);
+      alert('复制失败，请手动复制');
+    }
+  };
 
   // 加载 Token 信息
   useEffect(() => {
@@ -27,7 +40,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isDarkMode, setIsDar
         const response = await fetch('/api/v1/auth/token');
         const data = await response.json();
         if (data.code === 0) {
-          setTokenInfo(data.data.token);
+          setFullToken(data.data.token);
         }
       } catch (error) {
         console.error('获取 Token 信息失败:', error);
@@ -54,7 +67,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isDarkMode, setIsDar
       if (data.code === 0) {
         // 更新本地 token
         localStorage.setItem('token', data.data.token);
-        setTokenInfo(data.data.token.slice(0, 8) + '...' + data.data.token.slice(-4));
+        setFullToken(data.data.token);
         setShowTokenInput(false);
         setNewToken('');
         alert('Token 已更新，请重新登录');
@@ -190,12 +203,20 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ isDarkMode, setIsDar
                     <div className="bg-gray-50 dark:bg-slate-800/50 rounded-lg p-4 mb-4">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs text-muted-foreground">当前 Token</span>
-                        <span className="font-mono text-xs text-gray-600 dark:text-slate-400">
-                          {tokenInfo || '加载中...'}
-                        </span>
+                        <button
+                          onClick={handleCopyToken}
+                          className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10 rounded transition-colors"
+                          title="点击复制完整 Token"
+                        >
+                          {copied ? <Check size={14} /> : <Eye size={14} />}
+                          {copied ? '已复制' : '复制'}
+                        </button>
+                      </div>
+                      <div className="font-mono text-sm text-gray-900 dark:text-slate-100 bg-white dark:bg-slate-900 px-3 py-2 rounded border border-gray-200 dark:border-slate-700 mb-2 break-all">
+                        {fullToken || '加载中...'}
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        Token 用于 API 认证，请妥善保管
+                        Token 用于 API 认证，点击复制按钮可复制完整 Token
                       </p>
                     </div>
 

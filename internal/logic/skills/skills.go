@@ -622,6 +622,7 @@ func generateSkillMd(dirPath string, slug string, name string, description strin
 	desc = strings.ReplaceAll(desc, "\n", " ")
 	skillMd := fmt.Sprintf(`---
 name: %s
+slug: %s
 description: "%s"
 metadata:
   version: "1.0.0"
@@ -636,7 +637,7 @@ Describe what this skill does and how Claude should use it.
 ## Examples
 
 Provide examples of using this skill.
-`, slug, desc, name)
+`, name, slug, desc, name)
 	_ = os.WriteFile(filepath.Join(dirPath, "SKILL.md"), []byte(skillMd), 0644)
 }
 
