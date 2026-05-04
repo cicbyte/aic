@@ -695,11 +695,24 @@ export const SkillDetailPage = () => {
 
   const handleEditorContextMenu = (e: React.MouseEvent) => {
     if (!selectedFileId) return;
-    editorCtx.show(e, [
-      { label: '保存', icon: <Save size={14} />, onClick: handleSave },
-      { label: '下载', icon: <Download size={14} />, onClick: handleDownload, divider: true },
-      { label: '复制全部', icon: <FileText size={14} />, onClick: () => { navigator.clipboard.writeText(content); showToast('已复制', 'success'); } },
-    ]);
+    const selectedText = window.getSelection()?.toString() || '';
+    const hasSelection = selectedText.length > 0;
+    const items = [];
+    items.push({ label: '保存', icon: <Save size={14} />, onClick: handleSave });
+    if (hasSelection) {
+      items.push({
+        label: '复制', icon: <FileText size={14} />, divider: true, onClick: async () => {
+          try { await navigator.clipboard.writeText(selectedText); } catch { const ta = document.createElement('textarea'); ta.value = selectedText; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
+          showToast('已复制', 'success');
+        },
+      });
+    }
+    items.push({ label: '下载', icon: <Download size={14} />, onClick: handleDownload, divider: hasSelection });
+    items.push({ label: '复制全部', icon: <FileText size={14} />, onClick: async () => {
+      try { await navigator.clipboard.writeText(content); } catch { const ta = document.createElement('textarea'); ta.value = content; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
+      showToast('已复制', 'success');
+    } });
+    editorCtx.show(e, items);
   };
 
   const handleSave = async () => {
