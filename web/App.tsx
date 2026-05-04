@@ -136,8 +136,9 @@ const AppContent: React.FC = () => {
     if (isAuthenticated && !hasLoadedDataRef.current && initStatus?.initialized) {
       hasLoadedDataRef.current = true;
       categories.loadCategories();
-      prompts.loadPrompts();
-      projects.loadProjects();
+      skills.loadSkills({ pageSize: 9999 });
+      prompts.loadPrompts({ pageSize: 9999 });
+      projects.loadProjects({ pageSize: 9999 });
     }
   }, [isAuthenticated, initStatus]);
 
@@ -276,6 +277,9 @@ const AppContent: React.FC = () => {
             skills={skills.skills}
             prompts={prompts.prompts}
             projects={projects.projects}
+            skillTotalCount={skills.totalCount}
+            promptTotalCount={prompts.totalCount}
+            projectTotalCount={projects.totalCount}
             loadSkills={() => skills.loadSkills()}
             loadPrompts={() => prompts.loadPrompts()}
             loadProjects={() => projects.loadProjects()}
